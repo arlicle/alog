@@ -105,19 +105,25 @@ fn handle_server_connection(mut stream: TcpStream) {
     match re.captures(&r) {
         Some(cap) => {
             let url = match cap.get(1) {
-                Some(u) => u.as_str(),
+                Some(u) => u.as_str().trim_start_matches("/"),
                 None => panic!("can not get url"),
             };
 
-            let filename = format!("{}index.html", url.trim_start_matches("/"));
+            let filename = format!("{}index.html", url);
             let filename = match decode(&filename) {
                 Ok(s) => s,
                 Err(e) => filename
             };
             println!("{}", filename);
+            println!("{}", url);
             contents = match fs::read_to_string(filename) {
                 Ok(s) => s,
-                Err(e) => "<h1>404 File not found</h1>".to_string(),
+                Err(e) => {
+                    match fs::read_to_string(url) {
+                        Ok(s) => s,
+                        Err(e) => "<h1>404 File not found</h1>".to_string(),
+                    }
+                }
             };
         }
         None => ()
