@@ -40,7 +40,7 @@ use crossbeam_channel::unbounded;
 use notify::{RecommendedWatcher, RecursiveMode, Result as Notify_Result, Watcher};
 use std::time::Duration;
 
-pub fn watch_site_change() {
+pub fn watch_site_change(site_settings:Arc<Mutex<HashMap<String, String>>>) {
     // 建立异步线程，监控文件改动，当改动的时候，就重新生成站点
     thread::spawn(|| {
         let (tx, rx) = unbounded();
@@ -57,7 +57,7 @@ pub fn watch_site_change() {
     });
 }
 
-pub fn get_site_settings() -> HashMap<String, String> {
+pub fn get_site_settings() -> Arc<Mutex<HashMap<String, String>>> {
     let default_settings = "theme = \"default\"
 source_posts_dir = \"md\"
 site_title = \"Debug my self\"
@@ -77,12 +77,15 @@ server_port = \"7878\"";
         }
     }
     settings.merge(Config_File::from(config_file)).unwrap();
-    settings.try_into::<HashMap<String, String>>().unwrap()
+    let settings = settings.try_into::<HashMap<String, String>>().unwrap();
+    Arc::new(Mutex::new(settings))
 }
 
-pub fn run_site_server() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    println!("server is running on localhost:7878");
+pub fn run_site_server(site_settings:Arc<Mutex<HashMap<String, String>>>) {
+    let server_port = get_site_settings_val(site_settings, "server_port", "7878");
+    let add = format!("127.0.0.1:{}", server_port);
+    let listener = TcpListener::bind(&add).unwrap();
+    println!("server is running on {}", &add);
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
@@ -301,7 +304,7 @@ pub fn get_posts(path: &str) -> Vec<PostData> {
 }
 
 
-pub fn render_site() {
+pub fn render_site(site_settings:Arc<Mutex<HashMap<String, String>>>) {
     /// ## 生成静态网站，一共有4步
     /// 1. 删除旧的生成文件
     /// 2. 删除旧的静态文件
@@ -323,8 +326,9 @@ pub fn render_site() {
     };
 //    tera.register_filter("do_nothing", do_nothing_filter);
 
+    let site_title = get_site_settings_val(site_settings, "site_title", "alog");
     let mut context = Context::new();
-    context.insert("site_title", "debug my self");
+    context.insert("site_title", &site_title);
 
     let tera = Arc::new(Mutex::new(tera));
 
@@ -448,6 +452,14 @@ pub fn render_post_list_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<M
     }
 }
 
+
+fn get_site_settings_val(site_settings:Arc<Mutex<HashMap<String, String>>>, key:&str, default_val:&str) -> String{
+    let s = site_settings.lock().unwrap();
+    match s.get(key) {
+        Some(v) => v.to_string(),
+        None => default_val.to_string(),
+    }
+}
 
 //pub fn do_nothing_filter(value: &Value, _: &HashMap<String, Value>) -> Tera_Result<Value> {
 //    let s = try_get_value!("do_nothing_filter", "value", String, value);
