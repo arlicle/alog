@@ -1,4 +1,4 @@
-use rust_blog::{get_md_files, get_posts, render_site, watch_site_change, run_site_server};
+use alog::{get_md_files, get_posts, render_site, watch_site_change, run_site_server};
 
 
 fn main() {
