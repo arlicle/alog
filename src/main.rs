@@ -1,7 +1,10 @@
-use alog::{get_md_files, get_posts, render_site, watch_site_change, run_site_server};
+use alog::{render_site, watch_site_change, run_site_server, get_site_settings};
 
 
 fn main() {
+
+    let config = get_site_settings();
+    println!("config is {:?}", config);
 
     let s = "aa\
     dddd \

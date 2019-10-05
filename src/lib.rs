@@ -26,6 +26,8 @@ use std::net::TcpStream;
 use std::net::TcpListener;
 use urlencoding::decode;
 
+use config::{Config, File as Config_File};
+
 
 extern crate serde;
 extern crate serde_json;
@@ -55,22 +57,27 @@ pub fn watch_site_change() {
     });
 }
 
-pub fn create_config_file() {
-    // 判断是否有config.toml文件，如果没有就创建
-    if !Path::new("config.toml").exists() {
-        let default_config = "theme = \"default\" \
-source_posts_dir = \"md\" \
-site_title = \"Debug my self\" \
-static_html_dir = \"p\" \
+pub fn get_site_settings() -> HashMap<String, String> {
+    let default_settings = "theme = \"default\"
+source_posts_dir = \"md\"
+site_title = \"Debug my self\"
+static_html_dir = \"p\"
 server_port = \"7878\"";
-        let f = File::create(("config.toml").unwrap();
+
+    let mut settings = Config::default();
+    let config_file = Path::new("config.toml");
+
+    // 判断是否有config.toml文件，如果没有就创建
+    if !config_file.exists() {
+        let f = File::create("config.toml").unwrap();
         {
             let mut writer = BufWriter::new(f);
 
-            // write a byte to the buffer
-            writer.write(default_config.as_bytes()).unwrap();
-        } // the buffer is flushed once writer goes out of scope
+            writer.write(default_settings.as_bytes()).unwrap();
+        }
     }
+    settings.merge(Config_File::from(config_file)).unwrap();
+    settings.try_into::<HashMap<String, String>>().unwrap()
 }
 
 pub fn run_site_server() {
