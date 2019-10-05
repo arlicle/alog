@@ -40,7 +40,7 @@ use crossbeam_channel::unbounded;
 use notify::{RecommendedWatcher, RecursiveMode, Result as Notify_Result, Watcher};
 use std::time::Duration;
 
-pub fn watch_site_change(site_settings:Arc<Mutex<HashMap<String, String>>>) {
+pub fn watch_site_change(site_settings: Arc<Mutex<HashMap<String, String>>>) {
     // 建立异步线程，监控文件改动，当改动的时候，就重新生成站点
     thread::spawn(|| {
         let (tx, rx) = unbounded();
@@ -81,7 +81,7 @@ server_port = \"7878\"";
     Arc::new(Mutex::new(settings))
 }
 
-pub fn run_site_server(site_settings:Arc<Mutex<HashMap<String, String>>>) {
+pub fn run_site_server(site_settings: Arc<Mutex<HashMap<String, String>>>) {
     let server_port = get_site_settings_val(site_settings, "server_port", "7878");
     let add = format!("127.0.0.1:{}", server_port);
     let listener = TcpListener::bind(&add).unwrap();
@@ -304,7 +304,7 @@ pub fn get_posts(path: &str) -> Vec<PostData> {
 }
 
 
-pub fn render_site(site_settings:Arc<Mutex<HashMap<String, String>>>) {
+pub fn render_site(site_settings: Arc<Mutex<HashMap<String, String>>>) {
     /// ## 生成静态网站，一共有4步
     /// 1. 删除旧的生成文件
     /// 2. 删除旧的静态文件
@@ -420,27 +420,61 @@ pub fn render_post_list_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<M
     let mut context = context.lock().unwrap();
     let mut tera = tera.lock().unwrap();
 
-    let l = posts.len();
-    let mut prev_post: Option<PostData> = None;
-    let mut next_post: Option<PostData> = None;
-    for (index, post) in posts.iter().enumerate() {
-        let mut post = post.clone();
-        if index > 0 {
-            post.prev_post = Box::new(prev_post);
-        }
-        if index < (l - 1) {
-            post.next_post = Box::new(Some(posts[index + 1].clone()));
-        }
-        context.insert("post", &post);
-        let x = tera.render("post.html", context.clone()).unwrap();
+    let length = posts.len();
 
 
-        match std::fs::create_dir_all(&post.url) {
+    let mut current_start = 0;
+    let mut current_end = 0;
+    let mut current_page = 1;
+    let per_page = 1;
+    let mut is_end = false;
+    let mut page_post_list;
+
+    let mut current_url = "".to_string();
+    let mut next_url = "".to_string();
+    let mut prev_url = "".to_string();
+
+    // 计算页数
+    let mut last_page_num = length / per_page;
+    if length % per_page > 0 {
+        last_page_num += 1;
+    }
+    let page_numbers: Vec<i32> = (1..=last_page_num as i32).collect();
+    context.insert("last_page_num", &last_page_num);
+    context.insert("page_numbers", &page_numbers);
+
+    loop {
+        current_start = (current_page - 1) * per_page;
+        let current_end = current_start + per_page;
+        current_url = format!("p/list/{}/", current_page);
+        if current_page > 1 {
+            prev_url = format!("p/list/{}/", current_page - 1);
+        }
+        if current_end < length {
+            page_post_list = &posts[current_start..current_end];
+            next_url = format!("p/list/{}/", current_page + 1);
+        } else {
+            page_post_list = &posts[current_start..length];
+            is_end = true;
+        }
+
+        context.insert("current_page_post_list", &page_post_list);
+        context.insert("current_page_num", &current_page);
+
+
+        context.insert("current_page_url", &current_url);
+        context.insert("next_page_url", &next_url);
+        context.insert("prev_page_url", &prev_url);
+
+        let x = tera.render("list.html", context.clone()).unwrap();
+
+
+        match std::fs::create_dir_all(&current_url) {
             Ok(i) => (),
             Err(e) => ()
         }
 
-        let f = File::create(format!("{}index.html", post.url)).unwrap();
+        let f = File::create(format!("{}index.html", current_url)).unwrap();
         {
             let mut writer = BufWriter::new(f);
 
@@ -448,12 +482,15 @@ pub fn render_post_list_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<M
             writer.write(x.as_bytes()).unwrap();
         } // the buffer is flushed once writer goes out of scope
 
-        prev_post = Some(post.clone());
+        if (is_end) {
+            break;
+        }
+        current_page += 1;
     }
 }
 
 
-fn get_site_settings_val(site_settings:Arc<Mutex<HashMap<String, String>>>, key:&str, default_val:&str) -> String{
+fn get_site_settings_val(site_settings: Arc<Mutex<HashMap<String, String>>>, key: &str, default_val: &str) -> String {
     let s = site_settings.lock().unwrap();
     match s.get(key) {
         Some(v) => v.to_string(),

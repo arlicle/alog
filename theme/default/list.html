@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block page_title %}{{ site_title }}{% endblock %}
+{% block page_content %}
+        <div class="container bg-white pb-5 px-5x spx-0">
+
+            <h1 class="text-center post-title">永远保持初学者的心</h1>
+            {% for post in post_list %}
+            <p><a href="{{ post.url }}">{{ post.title }}</a></p>
+            {% endfor %}
+
+            <ul class="pagination mt-5 justify-content-center">
+                <li class="page-item{% if 1 == current_page_num %} disabled{% endif %}">
+                  <a class="page-link" href="/{{ prev_page_url }}" tabindex="-1">Previous</a>
+                </li>
+                {% for page in page_numbers %}
+                <li class="page-item{% if page == current_page_num %} active{% endif %}"><a class="page-link" href="/p/list/{{ page }}/">{{ page }}</a></li>
+                {% endfor %}
+
+                <li class="page-item{% if last_page_num == current_page_num %} disabled{% endif %}">
+                  <a class="page-link" href="/{{ next_page_url }}/">Next</a>
+                </li>
+          </ul>
+
+        </div>
+{% endblock %}
