@@ -114,16 +114,14 @@ fn handle_server_connection(mut stream: TcpStream) {
                 Ok(s) => s,
                 Err(e) => filename
             };
-            println!("{}", filename);
-            println!("{}", url);
+
             contents = match fs::read_to_string(filename) {
                 Ok(s) => s,
-                Err(e) => {
+                Err(e) =>
                     match fs::read_to_string(url) {
                         Ok(s) => s,
                         Err(e) => "<h1>404 File not found</h1>".to_string(),
                     }
-                }
             };
         }
         None => ()
@@ -483,10 +481,16 @@ pub fn render_post_list_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<M
         let f = File::create(format!("{}index.html", current_url)).unwrap();
         {
             let mut writer = BufWriter::new(f);
-
-            // write a byte to the buffer
             writer.write(x.as_bytes()).unwrap();
-        } // the buffer is flushed once writer goes out of scope
+        }
+
+        if current_page == 1 {
+            let f = File::create("p/list/index.html").unwrap();
+            {
+                let mut writer = BufWriter::new(f);
+                writer.write(x.as_bytes()).unwrap();
+            }
+        }
 
         if (is_end) {
             break;
