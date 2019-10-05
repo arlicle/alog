@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block page_title %}Debug my self{% endblock %}
+{% block page_content %}
+{% set post = post_list[0] %}
+        <div class="container bg-white pb-5 px-5 spx-0">
+            <h1 class="post-title">{{post.title}}</h1>
+{% if lead %}
+            <p class="lead text-center">手头上永远要有一样产品，是天塌下来你也挣钱的</p>
+{% endif %}
+            {{ post.content|safe }}
+            <p class="text-left text-muted">
+            </p>
+        </div>
+        <div class="container">
+            <div class="row mt-4">
+                <div class="col-6 text-left"></div>
+                <div class="col-6 text-right">{% if post.next_post %}<a href="/{{ post.next_post.url }}">下一篇:{{ post.next_post.title }}</a>{% endif %}</div>
+            </div>
+        </div>
+{% endblock %}
+{% block footer %}
+{% endblock %}
