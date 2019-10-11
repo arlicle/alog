@@ -43,4 +43,7 @@ Wohoo!
 
 皮肤都放在theme文件夹中，可以复制default皮肤出来改。启用皮肤前，需要到`config.toml`中修改配置。
 
+界面展示
 
+![avatar](/theme/default/img/a1.png)
+![avatar](/theme/default/img/ax.png)
