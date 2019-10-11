@@ -214,7 +214,9 @@ pub fn get_post_url(v: &Value, file_path: &Path) -> String {
     }
 }
 
-pub fn parse_md_file(md_file: &str) -> PostData {
+
+
+pub fn parse_post_md_file(md_file: &str) -> PostData {
     /// 读取md文档里面的内容，变成一个post数据
 
     let file_path = Path::new(md_file);
@@ -278,7 +280,7 @@ pub fn get_posts(path: &str) -> Vec<PostData> {
     let mut post_list = Vec::new();
     let mds = get_md_files(path);
     for md in mds.iter() {
-        let post = parse_md_file(md);
+        let post = parse_post_md_file(md);
         post_list.push(post);
     }
 
