@@ -38,22 +38,38 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crossbeam_channel::unbounded;
 use notify::{RecommendedWatcher, RecursiveMode, Result as Notify_Result, Watcher};
+use notify::event::{EventKind, ModifyKind};
+
 use std::time::Duration;
 
 pub fn watch_site_change(site_settings: Arc<Mutex<HashMap<String, String>>>) {
     // 建立异步线程，监控文件改动，当改动的时候，就重新生成站点
-    thread::spawn(|| {
+
+    thread::spawn(move|| {
         let (tx, rx) = unbounded();
         let mut watcher: RecommendedWatcher = Watcher::new(tx, Duration::from_secs(2)).unwrap();
 
         watcher.watch("md/", RecursiveMode::Recursive).unwrap();
 
+
         loop {
             match rx.recv() {
-                Ok(event) => println!("changed: {:?}", event),
+                Ok(event) => {
+                    match event {
+                        Ok(e) => match e.kind {
+                            EventKind::Modify(x) => {
+                                println!("modify the file {:?}", e.paths);
+                                render_site((&site_settings).clone());
+                            }
+                            _ => println!("other aaa"),
+                        }
+                        Err(e) => println!("event error {:?}", e),
+                    }
+//                    render_site(site_settings2);
+                }
                 Err(err) => println!("watch error: {:?}", err),
-            };
-        }
+            }
+        };
     });
 }
 
@@ -67,7 +83,7 @@ server_port = \"7878\"";
     let mut settings = Config::default();
     let config_file = Path::new("config.toml");
 
-    // 判断是否有config.toml文件，如果没有就创建
+// 判断是否有config.toml文件，如果没有就创建
     if !config_file.exists() {
         let f = File::create("config.toml").unwrap();
         {
@@ -215,13 +231,12 @@ pub fn get_post_url(v: &Value, file_path: &Path) -> String {
 }
 
 
-
 pub fn parse_post_md_file(md_file: &str) -> PostData {
     /// 读取md文档里面的内容，变成一个post数据
 
     let file_path = Path::new(md_file);
     let mut f = File::open(file_path).unwrap();
-    // 读取md文档内容
+// 读取md文档内容
     let mut md_content = String::new();
     f.read_to_string(&mut md_content);
     let md_content_cleaned = md_content.trim();
@@ -239,7 +254,7 @@ pub fn parse_post_md_file(md_file: &str) -> PostData {
     post_data.title = url;
 
 
-    // 获取md文档顶部的配置信息
+// 获取md文档顶部的配置信息
     let re = Regex::new(r"\s*(<!--)?\s*(\{[\s\S]*?\})\s*(-->)?\s*").unwrap();
     let x = re.captures(&md_content);
 
@@ -284,10 +299,10 @@ pub fn get_posts(path: &str) -> Vec<PostData> {
         post_list.push(post);
     }
 
-    // 对post 按时间进行排序
+// 对post 按时间进行排序
     post_list.sort_unstable_by(|a, b| a.post_date_int.partial_cmp(&b.post_date_int).unwrap());
 
-    // 对每一篇post生成 prev_post和next_post
+// 对每一篇post生成 prev_post和next_post
     let l = post_list.len();
     let mut prev_post: Option<PostData> = None;
     let mut next_post: Option<PostData> = None;
@@ -317,11 +332,11 @@ pub fn render_site(site_settings: Arc<Mutex<HashMap<String, String>>>) {
     /// 3. 生成新的静态文件
     /// 4. 拷贝新的静态文件
 
-    // 1. 删除旧的生成文件
+// 1. 删除旧的生成文件
 
-    // 2. 删除旧的静态文件
+// 2. 删除旧的静态文件
 
-    // 3. 重新生成新的静态文件
+// 3. 重新生成新的静态文件
 
     let mut tera = match Tera::new("theme/default/*.html") {
         Ok(t) => t,
@@ -370,12 +385,12 @@ pub fn render_site(site_settings: Arc<Mutex<HashMap<String, String>>>) {
         render_post_list_to_html(posts2, context2, tera2);
     });
 
-    // 4. 拷贝新的静态文件
+// 4. 拷贝新的静态文件
 }
 
 
 pub fn render_index_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<Mutex<Context>>, tera: Arc<Mutex<Tera>>) {
-    // 一个post一个post的渲染生成html
+// 一个post一个post的渲染生成html
 
     let posts = posts.lock().unwrap();
     let mut context = context.lock().unwrap();
@@ -387,14 +402,14 @@ pub fn render_index_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<Mutex
     {
         let mut writer = BufWriter::new(f);
 
-        // write a byte to the buffer
+// write a byte to the buffer
         writer.write(x.as_bytes()).unwrap();
     } // the buffer is flushed once writer goes out of scope
 }
 
 
 pub fn render_per_post_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<Mutex<Context>>, tera: Arc<Mutex<Tera>>) {
-    // 一个post一个post的渲染生成html
+// 一个post一个post的渲染生成html
 
     let posts = posts.lock().unwrap();
     let mut context = context.lock().unwrap();
@@ -413,7 +428,7 @@ pub fn render_per_post_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<Mu
         {
             let mut writer = BufWriter::new(f);
 
-            // write a byte to the buffer
+// write a byte to the buffer
             writer.write(x.as_bytes()).unwrap();
         } // the buffer is flushed once writer goes out of scope
     }
@@ -421,7 +436,7 @@ pub fn render_per_post_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<Mu
 
 
 pub fn render_post_list_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<Mutex<Context>>, tera: Arc<Mutex<Tera>>) {
-    // 生成html列表
+// 生成html列表
     let posts = posts.lock().unwrap();
     let mut context = context.lock().unwrap();
     let mut tera = tera.lock().unwrap();
@@ -440,7 +455,7 @@ pub fn render_post_list_to_html(posts: Arc<Mutex<Vec<PostData>>>, context: Arc<M
     let mut next_url = "".to_string();
     let mut prev_url = "".to_string();
 
-    // 计算页数
+// 计算页数
     let mut last_page_num = length / per_page;
     if length % per_page > 0 {
         last_page_num += 1;
