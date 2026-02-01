@@ -30,6 +30,23 @@ pub struct PostTemplate<'a> {
     pub tags: &'a [(String, usize)],
     pub prev_post: Option<PostNav>,
     pub next_post: Option<PostNav>,
+    pub comments_enabled: bool,
+    pub comments_config: Option<CommentsConfigTemplate>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct CommentsConfigTemplate {
+    pub repo: String,
+    pub repo_id: String,
+    pub category: String,
+    pub category_id: String,
+    pub mapping: String,
+    pub strict: String,
+    pub reactions_enabled: String,
+    pub emit_metadata: String,
+    pub input_position: String,
+    pub theme: String,
+    pub lang: String,
 }
 
 #[derive(Template)]
@@ -85,6 +102,8 @@ pub fn render_post<'a>(
     tags: &'a [(String, usize)],
     prev_post: Option<PostNav>,
     next_post: Option<PostNav>,
+    comments_enabled: bool,
+    comments_config: Option<CommentsConfigTemplate>,
 ) -> askama::Result<String> {
     let template = PostTemplate {
         post,
@@ -92,6 +111,8 @@ pub fn render_post<'a>(
         tags,
         prev_post,
         next_post,
+        comments_enabled,
+        comments_config,
     };
     template.render()
 }

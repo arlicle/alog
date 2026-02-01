@@ -13,6 +13,9 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
     fs::create_dir_all(&config.output_dir)
         .context("Failed to create output directory")?;
 
+    // Copy CSS files from templates directory to output directory
+    copy_template_assets(config)?;
+
     // Get categories and tags
     let categories = get_all_categories(posts);
     let tags = get_all_tags(posts);
@@ -117,7 +120,34 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
             created_at: p.metadata.created_at.clone(),
         });
 
-        let post_html = render_post(post, &categories, &top_tags, prev_nav, next_nav)?;
+        // Prepare comments config
+        let comments_config = if config.comments.enabled && config.comments.system == "giscus" {
+            config.comments.giscus.as_ref().map(|giscus| super::template::CommentsConfigTemplate {
+                repo: giscus.repo.clone(),
+                repo_id: giscus.repo_id.clone(),
+                category: giscus.category.clone(),
+                category_id: giscus.category_id.clone(),
+                mapping: giscus.mapping.clone(),
+                strict: giscus.strict.clone(),
+                reactions_enabled: giscus.reactions_enabled.clone(),
+                emit_metadata: giscus.emit_metadata.clone(),
+                input_position: giscus.input_position.clone(),
+                theme: giscus.theme.clone(),
+                lang: giscus.lang.clone(),
+            })
+        } else {
+            None
+        };
+
+        let post_html = render_post(
+            post,
+            &categories,
+            &top_tags,
+            prev_nav,
+            next_nav,
+            config.comments.enabled,
+            comments_config,
+        )?;
         
         // Organize by year/month/day: YYYY/MM/DD/slug.html
         let post_dir = config
@@ -272,14 +302,63 @@ pub fn get_all_categories(posts: &[BlogPost]) -> Vec<String> {
 
 pub fn get_all_tags(posts: &[BlogPost]) -> Vec<(String, usize)> {
     let mut tag_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    
+
     for post in posts {
         for tag in &post.metadata.tags {
             *tag_counts.entry(tag.clone()).or_insert(0) += 1;
         }
     }
-    
+
     let mut tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
     tags.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by count descending
     tags
+}
+
+fn copy_template_assets(config: &Config) -> Result<()> {
+    let templates_dir = PathBuf::from("templates");
+
+    // Check if templates directory exists
+    if !templates_dir.exists() {
+        return Ok(());
+    }
+
+    // Find all CSS files in templates directory
+    let css_files = find_css_files(&templates_dir)?;
+
+    for css_file in css_files {
+        let file_name = css_file
+            .file_name()
+            .context("Invalid CSS file name")?;
+
+        let dest_path = config.output_dir.join(file_name);
+
+        // Copy the CSS file
+        fs::copy(&css_file, &dest_path)
+            .with_context(|| format!("Failed to copy CSS file from {:?} to {:?}", css_file, dest_path))?;
+
+        println!("Copied {} to output directory", file_name.to_string_lossy());
+    }
+
+    Ok(())
+}
+
+fn find_css_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
+    let mut css_files = Vec::new();
+
+    for entry in fs::read_dir(dir)
+        .with_context(|| format!("Failed to read directory: {}", dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(ext) = path.extension() {
+                if ext == "css" {
+                    css_files.push(path);
+                }
+            }
+        }
+    }
+
+    Ok(css_files)
 }

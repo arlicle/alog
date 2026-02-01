@@ -10,6 +10,7 @@ pub struct Config {
     pub server: ServerConfig,
     pub theme: ThemeConfig,
     pub pagination: PaginationConfig,
+    pub comments: CommentsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +30,28 @@ pub struct PaginationConfig {
     pub posts_per_page: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommentsConfig {
+    pub enabled: bool,
+    pub system: String,
+    pub giscus: Option<GiscusCommentsConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GiscusCommentsConfig {
+    pub repo: String,
+    pub repo_id: String,
+    pub category: String,
+    pub category_id: String,
+    pub mapping: String,
+    pub strict: String,
+    pub reactions_enabled: String,
+    pub emit_metadata: String,
+    pub input_position: String,
+    pub theme: String,
+    pub lang: String,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -44,6 +67,11 @@ impl Default for Config {
             },
             pagination: PaginationConfig {
                 posts_per_page: 15,
+            },
+            comments: CommentsConfig {
+                enabled: false,
+                system: "giscus".to_string(),
+                giscus: None,
             },
         }
     }

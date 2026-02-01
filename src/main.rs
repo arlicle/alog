@@ -6,6 +6,7 @@ use alog::server::start_server;
 use alog::watcher::start_watcher;
 use anyhow::Result;
 use clap::Parser;
+use std::path::PathBuf;
 use tracing_subscriber;
 
 #[tokio::main]
@@ -22,11 +23,25 @@ async fn main() -> Result<()> {
             input_dir,
             output_dir,
         } => {
-            let config = Config {
-                input_dir,
-                output_dir,
-                ..Default::default()
+            // Try to load config from config.toml, otherwise use defaults
+            let config_path = PathBuf::from("config.toml");
+            let mut config = if config_path.exists() {
+                Config::from_file(&config_path).unwrap_or_else(|e| {
+                    eprintln!("Warning: Failed to load config.toml: {}, using defaults", e);
+                    Config::default()
+                })
+            } else {
+                Config::default()
             };
+
+            // Override with command line arguments if provided
+            if input_dir != PathBuf::from("./md") {
+                config.input_dir = input_dir;
+            }
+            if output_dir != PathBuf::from("./www") {
+                config.output_dir = output_dir;
+            }
+
             build_site(&config)?;
             println!("Site built successfully!");
         }
@@ -35,12 +50,27 @@ async fn main() -> Result<()> {
             input_dir,
             output_dir,
         } => {
-            let mut config = Config {
-                input_dir,
-                output_dir,
-                ..Default::default()
+            // Try to load config from config.toml, otherwise use defaults
+            let config_path = PathBuf::from("config.toml");
+            let mut config = if config_path.exists() {
+                Config::from_file(&config_path).unwrap_or_else(|e| {
+                    eprintln!("Warning: Failed to load config.toml: {}, using defaults", e);
+                    Config::default()
+                })
+            } else {
+                Config::default()
             };
-            config.server.port = port;
+
+            // Override with command line arguments if provided
+            if input_dir != PathBuf::from("./md") {
+                config.input_dir = input_dir;
+            }
+            if output_dir != PathBuf::from("./www") {
+                config.output_dir = output_dir;
+            }
+            if port != 7878 {
+                config.server.port = port;
+            }
 
             // Initial build
             build_site(&config)?;

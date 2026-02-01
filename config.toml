@@ -32,3 +32,65 @@ output_dir = "./www"
 [pagination]
     # 每页显示的文章数量
     posts_per_page = 15
+
+# 评论系统配置
+[comments]
+    # 是否启用评论功能
+    enabled = true
+
+    # 评论系统类型（目前支持: giscus）
+    system = "giscus"
+
+    # Giscus 评论配置
+    # ⚠️ 重要：必须从 https://giscus.app 获取正确的配置信息
+    [comments.giscus]
+        # GitHub 仓库格式: username/repo-name
+        # 确保该仓库已启用 Discussions 功能
+        repo = "arlicle/arlicle.github.io"
+
+        # 仓库 ID（从 Giscus 配置页面获取）
+        # 格式类似: R_kgDOOOOOOO
+        repo_id = "MDEwOlJlcG9zaXRvcnkxMTE5Njg2MzA="
+
+        # Discussion 分类
+        # 需要在 GitHub 仓库的 Discussions 设置中创建的分类名称
+        category = "Announcements"
+
+        # 分类 ID（从 Giscus 配置页面获取）
+        # 格式类似: DIC_kwDOOOOOOOO
+        category_id = "DIC_kwDOBqyBds4C1t7O"
+
+        # 评论关联方式（可选值）:
+        # - "pathname" - 基于页面路径（推荐，每篇文章一个 discussion）
+        # - "url" - 基于完整 URL
+        # - "title" - 基于页面标题
+        # - "og:title" - 基于 Open Graph 标题
+        mapping = "pathname"
+
+        # 严格模式（可选值）: "0" 或 "1"
+        # "0" = 非严格模式：如果找不到对应 discussion，会创建新的
+        # "1" = 严格模式：如果找不到对应 discussion，会报错
+        strict = "0"
+
+        # 是否启用表情反应（可选值）: "0" 或 "1"
+        # "1" = 启用（显示点赞、笑、思考等表情按钮）
+        # "0" = 禁用（不显示表情按钮）
+        reactions_enabled = "0"
+
+        # 是否发送元数据（可选值）: "0" 或 "1"
+        # "1" = 发送页面的 Open Graph 信息到 discussion
+        emit_metadata = "0"
+
+        # 输入框位置（可选值）: "top" 或 "bottom"
+        input_position = "bottom"
+
+        # 主题（可选值）:
+        # - "light" - 浅色主题
+        # - "dark" - 深色主题
+        # - "dark_dimmed" - 深色柔和主题
+        # - "transparent_dark" - 透明深色主题
+        # - "preferred_color_scheme" - 跟随系统主题
+        theme = "light"
+
+        # 语言（可选值）: "zh-CN", "en", "ja", "ko" 等
+        lang = "zh-CN"
