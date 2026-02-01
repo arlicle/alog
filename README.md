@@ -1,51 +1,250 @@
-# alog
-一款用Rust写的生成静态网站的程序。
+# alog 项目说明
 
-1 支持热更新  
-2 支持自定皮肤  
-3 支持自定义发布时间，post url  
-4 
+## 项目概述
 
-## 安装说明
-### 直接下载程序运行
-1 Mac os 系统
+**alog** 是一个用 Rust 编写的快速静态博客生成器，专注于简洁性和开发体验。该项目的核心功能包括：
 
-2 Linux 系统
+- 将 Markdown 文件渲染为静态 HTML 网站
+- 支持热更新（文件监控自动重新构建）
+- 支持自定义主题和样式
+- 灵活的发布时间配置
+- 内置开发服务器
+- 支持 Frontmatter 元数据
+- 支持 RSS 订阅
+- 支持标签和分类
 
-3 Windows系统
+## 技术栈
 
-1 下载源码后，编译后，访问`http:localhost:7878 `, 7878为默认端口，可以在程序自动生成的配置文件`config.toml`中修改。
+### 核心依赖
 
-### 写markdown日志
-写日志目前只支持markdown语法，文件放在md目录中，也可以在``config.toml`文件中修改。因为以后文件会越来越多，为了方便维护和管理日志，建议文件按照文件夹`年/月/`的方式建立来写，或者自己定义的其它方式都可以，程序会自动找出所有md文件，然后根据时间去生成。
+- **Rust 2021 Edition** - 主要编程语言
+- **clap 4.5** - 命令行参数解析（支持 derive 宏）
+- **tokio 1.40** - 异步运行时
+- **axum 0.8** - Web 框架，用于开发服务器
+- **tower-http 0.5** - HTTP 服务扩展（文件系统支持、追踪）
+- **pulldown-cmark 0.13** - Markdown 解析器
+- **notify 7.0** - 文件系统监控（热更新）
+- **askama 0.12** - 模板引擎
+- **chrono 0.4** - 日期时间处理
+- **serde** + **toml** + **serde_yaml** - 序列化/反序列化
+- **rss 2.0** - RSS feed 生成
+- **tracing** - 结构化日志
 
-写日志的时候，如果文件名按照这么来写`20191001-Hello World.md`, 内容为
-```html
-My content is Hello World!
+### 架构
+
+项目采用模块化设计，主要模块包括：
+
+```
+src/
+├── main.rs          # 应用入口
+├── lib.rs           # 库导出
+├── cli.rs           # CLI 命令定义
+├── config.rs        # 配置管理
+├── parser/          # Markdown 解析模块
+│   ├── frontmatter.rs   # Frontmatter 解析
+│   ├── markdown.rs      # BlogPost 结构定义
+│   └── mod.rs
+├── renderer/        # 渲染模块
+│   ├── html.rs          # HTML 生成
+│   ├── template.rs      # 模板渲染
+│   ├── rss.rs           # RSS feed 生成
+│   └── mod.rs
+├── server/          # Web 服务器
+│   ├── serve.rs         # 服务器启动
+│   └── mod.rs
+└── watcher/         # 文件监控
+    ├── file_watcher.rs  # 文件变更监控
+    └── mod.rs
 ```
 
-那么程序渲染时会把20191001作为日志发布时间：2019-10-01来用，Hello World作为日志的标题。时间这里也可以写到具体几点几分写,例如`201910011430-Hello World.md`
+## 构建和运行
 
-也可以在日志文件中来指定写的时间，以及标题。例如日志：`First post`，内容为：
-```html
---
-title: 编程深度解析与实践指南
-date: 2026-02-01
-category: 编程
-tags: [编程, 学习, 实践, 指南]
-summary: 本文详细介绍了编程深度解析与实践指南的核心概念、实践方法和最佳实践，适合编程领域的开发者学习参考。
---
+### 构建项目
 
-This is my first post.
-
-Wohoo!
+```bash
+cargo build --release
 ```
-其中`--{`开始到 `}--`这个部分的全部内容，为这篇post的配置文件，可以配置他的标题 title, 发布时间 date, 分类 category, 标签列表 tags，文章摘抄 summary
 
-### 发布到github、Coding、码云
+### 运行命令
 
-### 自定义皮肤
+#### 构建静态网站
 
-皮肤都放在theme文件夹中，可以复制default皮肤出来改。启用皮肤前，需要到`config.toml`中修改配置。
+```bash
+# 使用默认配置（输入目录: ./md, 输出目录: ./www）
+cargo run -- build
 
-界面展示
+# 自定义输入输出目录
+cargo run -- build --input-dir ./my-posts --output-dir ./output
+```
+
+#### 启动开发服务器（支持热更新）
+
+```bash
+# 使用默认端口 7878
+cargo run -- serve
+
+# 自定义端口
+cargo run -- serve --port 3000
+
+# 自定义输入输出目录
+cargo run -- serve --input-dir ./md --output-dir ./www --port 8080
+```
+
+### 运行测试
+
+```bash
+cargo test
+```
+
+### 检查代码质量
+
+```bash
+# 格式检查
+cargo fmt --check
+
+# Clippy 检查
+cargo clippy
+
+# 类型检查
+cargo check
+```
+
+## 配置说明
+
+项目使用 TOML 格式的配置文件（默认 `config.toml`），配置结构：
+
+```toml
+[input_dir]
+输入 Markdown 文件的目录（默认: "./md"）
+
+[output_dir]
+输出静态网站的目录（默认: "./www"）
+
+[server.port]
+开发服务器端口（默认: 7878）
+
+[server.host]
+开发服务器绑定地址（默认: "0.0.0.0"）
+
+[theme.name]
+主题名称（默认: "default"）
+
+[theme.custom_css]
+自定义 CSS 文件路径（可选）
+
+[pagination.posts_per_page]
+每页文章数量（默认: 15）
+```
+
+## 开发约定
+
+### 文件命名约定
+
+Markdown 文件支持两种命名方式：
+
+1. **文件名包含日期**（推荐）
+   - 格式: `YYYY-MM-DD-标题.md`
+   - 示例: `2024-01-15-Hello-World.md`
+   - 也支持精确时间: `YYYYMMDDHHmm-标题.md`
+
+2. **目录结构包含日期**
+   - 目录结构: `md/YYYY/MM/文件名.md`
+   - 示例: `md/2024/01/my-post.md`
+   - 日期会从目录结构中提取（设置为当月1号）
+
+3. **Frontmatter 指定日期**
+   - 在文件头部使用 YAML frontmatter 指定
+
+### Frontmatter 格式
+
+Markdown 文件支持 YAML frontmatter，格式如下：
+
+```markdown
+---
+title: 文章标题
+date: 2024-01-15
+category: 分类
+tags: [标签1, 标签2, 标签3]
+summary: 文章摘要
+---
+
+文章正文内容...
+```
+
+### 模板系统
+
+使用 Askama 模板引擎，模板文件位于 `templates/` 目录：
+- `index.html` - 首页模板
+- `post.html` - 文章详情模板
+- `index_pagination.html` - 首页分页模板
+- `category.html` - 分类页面模板
+- `category_pagination.html` - 分类分页模板
+- `tag.html` - 标签页面模板
+- `tags.html` - 标签列表模板
+
+### 代码风格
+
+- 使用 Rust 标准格式化: `cargo fmt`
+- 遵循 Clippy 建议: `cargo clippy`
+- 错误处理使用 `anyhow::Result` 统一错误类型
+- 日志使用 `tracing` crate
+
+### 日志配置
+
+使用环境变量控制日志级别：
+
+```bash
+# 开发环境：详细信息
+RUST_LOG=debug cargo run -- serve
+
+# 生产环境：仅错误
+RUST_LOG=error cargo run -- serve
+```
+
+## 主题自定义
+
+主题放置在 `theme` 文件夹中，可以通过复制 default 主题并修改来自定义。启用前需要在 `config.toml` 中配置主题名称。
+
+## 输出结构
+
+构建后的网站结构：
+
+```
+www/
+├── index.html
+├── index-page-2.html
+├── post/
+│   └── [文章slug].html
+├── category/
+│   └── [分类名].html
+├── tag/
+│   └── [标签名].html
+├── tags.html
+└── rss.xml
+```
+
+## 常见任务
+
+### 添加新文章
+
+1. 在 `md/` 目录下创建 Markdown 文件
+2. 使用推荐的命名格式: `YYYY-MM-DD-标题.md`
+3. 添加 frontmatter 元数据（可选）
+4. 使用 `cargo run -- serve` 启动开发服务器，会自动重新构建
+
+### 修改主题
+
+1. 复制 `theme/default/` 到新主题文件夹
+2. 修改模板文件和样式
+3. 在 `config.toml` 中更新主题名称
+
+### 部署到 GitHub Pages
+
+构建完成后，将 `www/` 目录内容推送到 `gh-pages` 分支或配置为 GitHub Pages 源目录。
+
+## 注意事项
+
+- 项目目前处于开发阶段，API 可能会有变化
+- 文件监控功能在 serve 模式下会自动重新构建
+- 所有日期最终转换为 `chrono::NaiveDate` 格式
+- 文章按发布时间降序排列（最新的在前）
