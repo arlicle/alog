@@ -114,26 +114,40 @@ cargo check
 项目使用 TOML 格式的配置文件（默认 `config.toml`），配置结构：
 
 ```toml
-[input_dir]
-输入 Markdown 文件的目录（默认: "./md"）
+# alog 配置文件
+# 请根据需要修改以下配置项
 
-[output_dir]
-输出静态网站的目录（默认: "./www"）
+# 输入目录：存放 Markdown 文章的目录
+input_dir = "./md"
 
-[server.port]
-开发服务器端口（默认: 7878）
+# 输出目录：生成的静态网站文件存放目录
+output_dir = "./www"
 
-[server.host]
-开发服务器绑定地址（默认: "0.0.0.0"）
+# 服务器配置
+[server]
+    # 端口号：开发服务器监听的端口
+    port = 7878
 
-[theme.name]
-主题名称（默认: "default"）
+    # 主机地址：开发服务器绑定的地址
+    # "0.0.0.0" 表示监听所有网络接口
+    # "127.0.0.1" 表示仅本地访问
+    host = "0.0.0.0"
 
-[theme.custom_css]
-自定义 CSS 文件路径（可选）
+# 主题配置
+[theme]
+    # 主题名称：使用的主题文件夹名称
+    # 主题文件应放置在 theme/ 目录下
+    name = "default"
 
-[pagination.posts_per_page]
-每页文章数量（默认: 15）
+    # 自定义 CSS 文件路径（可选）
+    # 如果需要自定义样式，可以指定 CSS 文件路径
+    # 例如: "custom.css" 或 "./theme/my-theme/style.css"
+    # custom_css = "custom.css"
+
+# 分页配置
+[pagination]
+    # 每页显示的文章数量
+    posts_per_page = 15
 ```
 
 ## 开发约定

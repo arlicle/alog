@@ -1,0 +1,34 @@
+# alog 配置文件
+# 请根据需要修改以下配置项
+
+# 输入目录：存放 Markdown 文章的目录
+input_dir = "./md"
+
+# 输出目录：生成的静态网站文件存放目录
+output_dir = "./www"
+
+# 服务器配置
+[server]
+    # 端口号：开发服务器监听的端口
+    port = 7878
+
+    # 主机地址：开发服务器绑定的地址
+    # "0.0.0.0" 表示监听所有网络接口
+    # "127.0.0.1" 表示仅本地访问
+    host = "0.0.0.0"
+
+# 主题配置
+[theme]
+    # 主题名称：使用的主题文件夹名称
+    # 主题文件应放置在 theme/ 目录下
+    name = "default"
+
+    # 自定义 CSS 文件路径（可选）
+    # 如果需要自定义样式，可以指定 CSS 文件路径
+    # 例如: "custom.css" 或 "./theme/my-theme/style.css"
+    # custom_css = "custom.css"
+
+# 分页配置
+[pagination]
+    # 每页显示的文章数量
+    posts_per_page = 15
