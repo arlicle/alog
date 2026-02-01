@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>{{ category }} - My Blog</title>
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <div class="site-title"><a href="/">My Blog</a></div>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </header>
+    
+    <div class="container">
+        <main class="main-content">
+            <h2>Category: {{ category }} </h2>
+
+            {% if !posts.is_empty() %}
+            <ul class="post-list">
+                {% for post in posts %}
+                <li class="post-list-item">
+                    <h3 class="post-title">
+                        <a href="/{{ post.metadata.year }}/{{ post.metadata.month }}/{{ post.metadata.day }}/{{ post.metadata.slug }}.html">
+                            {{ post.metadata.title }}
+                        </a>
+                    </h3>
+                    <div class="post-meta">
+                        {{ post.metadata.formatted_date }}
+                    </div>
+                    {% match post.metadata.summary %}
+                    {% when Some with (summary) %}
+                    <p class="post-summary">{{ summary }}</p>
+                    {% when None %}
+                    {% endmatch %}
+                    {% if !post.metadata.tags.is_empty() %}
+                    <div class="tags">
+                        {% for tag in post.metadata.tags %}
+                        <span class="tag"><a href="/tag/{{ tag }}.html">{{ tag }}</a></span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+
+            <div class="pagination">
+                {% if page > 1 %}
+                <a href="{% if page == 2 %}/category/{{ category }}.html{% else %}/category/{{ category }}/page/{{ page - 1 }}.html{% endif %}">&laquo; Previous</a>
+                {% else %}
+                <span class="disabled">&laquo; Previous</span>
+                {% endif %}
+
+                {% if total_pages <= 7 %}
+                {% for p in 1..=total_pages %}
+                {% if p == page %}
+                <span class="current">{{ p }}</span>
+                {% else %}
+                <a href="{% if p == 1 %}/category/{{ category }}.html{% else %}/category/{{ category }}/page/{{ p }}.html{% endif %}">{{ p }}</a>
+                {% endif %}
+                {% endfor %}
+                {% else %}
+                {% if page > 3 %}
+                <a href="/category/{{ category }}.html">1</a>
+                <span class="disabled">...</span>
+                {% endif %}
+                {% if page > 2 %}
+                <a href="/category/{{ category }}/page/{{ page - 2 }}.html">{{ page - 2 }}</a>
+                {% endif %}
+                {% if page > 1 %}
+                <a href="/category/{{ category }}/page/{{ page - 1 }}.html">{{ page - 1 }}</a>
+                {% endif %}
+                <span class="current">{{ page }}</span>
+                {% if page < total_pages %}
+                <a href="/category/{{ category }}/page/{{ page + 1 }}.html">{{ page + 1 }}</a>
+                {% endif %}
+                {% if page < total_pages - 1 %}
+                <a href="/category/{{ category }}/page/{{ page + 2 }}.html">{{ page + 2 }}</a>
+                {% endif %}
+                {% if page < total_pages - 3 %}
+                <span class="disabled">...</span>
+                <a href="/category/{{ category }}/page/{{ total_pages }}.html">{{ total_pages }}</a>
+                {% else if page < total_pages - 2 %}
+                <a href="/category/{{ category }}/page/{{ total_pages }}.html">{{ total_pages }}</a>
+                {% endif %}
+                {% endif %}
+
+                {% if page < total_pages %}
+                <a href="/category/{{ category }}/page/{{ page + 1 }}.html">Next &raquo;</a>
+                {% else %}
+                <span class="disabled">Next &raquo;</span>
+                {% endif %}
+            </div>
+            {% else %}
+            <p>No posts in this category.</p>
+            {% endif %}
+        </main>
+
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    {% for cat in categories %}
+                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Popular Tags</h3>
+                <ul class="tag-cloud">
+                    {% for (tag, count) in tags %}
+                    <li><a href="/tag/{{ tag }}.html">{{ tag }} <span class="tag-count">({{ count }})</span></a></li>
+                    {% endfor %}
+                </ul>
+                <p style="margin-top: 1rem;"><a href="/tags.html">&rarr; View all tags</a></p>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Subscribe</h3>
+                <p><a href="/rss.xml">RSS Feed</a></p>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 My Blog. Built with alog.</p>
+    </footer>
+
+    <!-- Mobile Sidebar -->
+    <div class="mobile-sidebar" id="mobileSidebar">
+        <div class="mobile-sidebar-content">
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    {% for cat in categories %}
+                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Popular Tags</h3>
+                <ul class="tag-cloud">
+                    {% for (tag, count) in tags %}
+                    <li><a href="/tag/{{ tag }}.html">{{ tag }} <span class="tag-count">({{ count }})</span></a></li>
+                    {% endfor %}
+                </ul>
+                <p style="margin-top: 1rem;"><a href="/tags.html">&rarr; View all tags</a></p>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Subscribe</h3>
+                <p><a href="/rss.xml">RSS Feed</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script>
+        const menuToggle = document.getElementById('menuToggle');
+        const mobileSidebar = document.getElementById('mobileSidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        menuToggle.addEventListener('click', () => {
+            mobileSidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            menuToggle.classList.toggle('active');
+            document.body.style.overflow = mobileSidebar.classList.contains('active') ? 'hidden' : '';
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+            mobileSidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            menuToggle.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    </script>
+</body>
+</html>

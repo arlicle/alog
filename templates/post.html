@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>{{ post.metadata.title }}</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+<body class="post-page">
+    <header>
+        <div class="site-title"><a href="/">My Blog</a></div>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </header>
+
+    <div class="container">
+        <main class="main-content">
+            <h1 class="article-title">{{ post.metadata.title }}</h1>
+            
+            <div class="post-meta">
+                {% if !post.metadata.category.is_empty() %}
+                <span class="post-category">
+                    <a href="/category/{{ post.metadata.category }}.html">{{ post.metadata.category }}</a>
+                </span>
+                {% endif %}
+                {{ post.metadata.formatted_date }}
+            </div>
+
+            {% if !post.metadata.tags.is_empty() %}
+            <div class="tags">
+                {% for tag in post.metadata.tags %}
+                <span class="tag"><a href="/tag/{{ tag }}.html">{{ tag }}</a></span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <article>
+                {{ post.metadata.html_content|safe }}
+            </article>
+
+            <div class="post-navigation">
+                {% if let Some(prev) = prev_post %}
+                <div class="prev-post">
+                    <span class="nav-label">Previous Post</span>
+                    <a href="{{ prev.url }}" class="nav-link">
+                        <span class="nav-title">{{ prev.title }}</span>
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if let Some(next) = next_post %}
+                <div class="next-post">
+                    <span class="nav-label">Next Post</span>
+                    <a href="{{ next.url }}" class="nav-link">
+                        <span class="nav-title">{{ next.title }}</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    {% for cat in categories %}
+                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Popular Tags</h3>
+                <ul class="tag-cloud">
+                    {% for (tag, count) in tags %}
+                    <li><a href="/tag/{{ tag }}.html">{{ tag }} <span class="tag-count">({{ count }})</span></a></li>
+                    {% endfor %}
+                </ul>
+                <p style="margin-top: 1rem;"><a href="/tags.html">&rarr; View all tags</a></p>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Subscribe</h3>
+                <p><a href="/rss.xml">RSS Feed</a></p>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 My Blog. Built with alog.</p>
+    </footer>
+
+    <!-- Mobile Sidebar -->
+    <div class="mobile-sidebar" id="mobileSidebar">
+        <div class="mobile-sidebar-content">
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    {% for cat in categories %}
+                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Popular Tags</h3>
+                <ul class="tag-cloud">
+                    {% for (tag, count) in tags %}
+                    <li><a href="/tag/{{ tag }}.html">{{ tag }} <span class="tag-count">({{ count }})</span></a></li>
+                    {% endfor %}
+                </ul>
+                <p style="margin-top: 1rem;"><a href="/tags.html">&rarr; View all tags</a></p>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Subscribe</h3>
+                <p><a href="/rss.xml">RSS Feed</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script>
+        const menuToggle = document.getElementById('menuToggle');
+        const mobileSidebar = document.getElementById('mobileSidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        menuToggle.addEventListener('click', () => {
+            mobileSidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            menuToggle.classList.toggle('active');
+            document.body.style.overflow = mobileSidebar.classList.contains('active') ? 'hidden' : '';
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+            mobileSidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            menuToggle.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    </script>
+</body>
+</html>

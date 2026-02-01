@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>All Tags - My Blog</title>
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <div class="site-title"><a href="/">My Blog</a></div>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </header>
+
+    <div class="container">
+        <main class="main-content">
+            <h2>All Tags</h2>
+
+            {% if !tags.is_empty() %}
+            <p>Total tags: {{ tags.len() }}</p>
+            
+            <div class="tags-grid">
+                {% for (tag, count) in tags %}
+                <div class="tag-card">
+                    <a href="/tag/{{ tag }}.html">{{ tag }}</a>
+                    <a href="/tag/{{ tag }}.html" class="count">({{ count }} posts)</a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>No tags found.</p>
+            {% endif %}
+        </main>
+
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    {% for cat in categories %}
+                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Subscribe</h3>
+                <p><a href="/rss.xml">RSS Feed</a></p>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 My Blog. Built with alog.</p>
+    </footer>
+
+    <!-- Mobile Sidebar -->
+    <div class="mobile-sidebar" id="mobileSidebar">
+        <div class="mobile-sidebar-content">
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-list">
+                    {% for cat in categories %}
+                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Subscribe</h3>
+                <p><a href="/rss.xml">RSS Feed</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script>
+        const menuToggle = document.getElementById('menuToggle');
+        const mobileSidebar = document.getElementById('mobileSidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        menuToggle.addEventListener('click', () => {
+            mobileSidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+            menuToggle.classList.toggle('active');
+            document.body.style.overflow = mobileSidebar.classList.contains('active') ? 'hidden' : '';
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+            mobileSidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            menuToggle.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    </script>
+</body>
+</html>
