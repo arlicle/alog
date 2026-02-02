@@ -194,12 +194,38 @@ fn generate_pages(
         return Ok(());
     }
 
+    // Prepare comments config
+    let comments_config = if config.comments.enabled && config.comments.system == "giscus" {
+        config.comments.giscus.as_ref().map(|giscus| super::template::CommentsConfigTemplate {
+            repo: giscus.repo.clone(),
+            repo_id: giscus.repo_id.clone(),
+            category: giscus.category.clone(),
+            category_id: giscus.category_id.clone(),
+            mapping: giscus.mapping.clone(),
+            strict: giscus.strict.clone(),
+            reactions_enabled: giscus.reactions_enabled.clone(),
+            emit_metadata: giscus.emit_metadata.clone(),
+            input_position: giscus.input_position.clone(),
+            theme: giscus.theme.clone(),
+            lang: giscus.lang.clone(),
+        })
+    } else {
+        None
+    };
+
     for page_item in pages {
         let page_path = pages_dir.join(&page_item.filename);
 
         // Parse the page as a BlogPost (using the same logic as regular posts)
         if let Ok(blog_post) = BlogPost::from_file(&page_path) {
-            let page_html = super::template::render_page(&blog_post, categories, tags, pages)?;
+            let page_html = super::template::render_page(
+                &blog_post,
+                categories,
+                tags,
+                pages,
+                config.comments.enabled,
+                comments_config.clone(),
+            )?;
 
             let output_path = config.output_dir.join(format!("{}.html", page_item.path));
             fs::write(&output_path, page_html)

@@ -180,6 +180,8 @@ pub struct PageTemplate<'a> {
     pub categories: &'a [String],
     pub tags: &'a [(String, usize)],
     pub pages: &'a [PageItem],
+    pub comments_enabled: bool,
+    pub comments_config: Option<CommentsConfigTemplate>,
 }
 
 pub fn render_page<'a>(
@@ -187,12 +189,16 @@ pub fn render_page<'a>(
     categories: &'a [String],
     tags: &'a [(String, usize)],
     pages: &'a [PageItem],
+    comments_enabled: bool,
+    comments_config: Option<CommentsConfigTemplate>,
 ) -> askama::Result<String> {
     let template = PageTemplate {
         page,
         categories,
         tags,
         pages,
+        comments_enabled,
+        comments_config,
     };
     template.render()
 }
