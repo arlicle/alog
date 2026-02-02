@@ -338,16 +338,19 @@ article th {
 }
 
 .category-list,
+.page-list,
 .tag-cloud {
     list-style: none;
 }
 
 .category-list li,
+.page-list li,
 .tag-cloud li {
     margin-bottom: 0.5rem;
 }
 
 .category-list a,
+.page-list a,
 .tag-cloud a {
     text-decoration: none;
     color: var(--text-color);
@@ -355,6 +358,7 @@ article th {
 }
 
 .category-list a:hover,
+.page-list a:hover,
 .tag-cloud a:hover {
     color: var(--primary-color);
 }
