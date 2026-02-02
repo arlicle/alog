@@ -1,6 +1,6 @@
 // Template rendering module
 use askama::Template;
-use crate::parser::BlogPost;
+use crate::parser::{BlogPost, frontmatter::PageItem};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -17,6 +17,7 @@ pub struct IndexTemplate<'a> {
     pub posts: Vec<&'a BlogPost>,
     pub categories: &'a [String],
     pub tags: &'a [(String, usize)],
+    pub pages: &'a [PageItem],
     pub page: usize,
     pub total_pages: usize,
     pub current_url: String,
@@ -28,6 +29,7 @@ pub struct PostTemplate<'a> {
     pub post: &'a BlogPost,
     pub categories: &'a [String],
     pub tags: &'a [(String, usize)],
+    pub pages: &'a [PageItem],
     pub prev_post: Option<PostNav>,
     pub next_post: Option<PostNav>,
     pub comments_enabled: bool,
@@ -56,6 +58,7 @@ pub struct CategoryTemplate<'a> {
     pub posts: Vec<&'a BlogPost>,
     pub categories: &'a [String],
     pub tags: &'a [(String, usize)],
+    pub pages: &'a [PageItem],
     pub page: usize,
     pub total_pages: usize,
 }
@@ -67,6 +70,7 @@ pub struct TagTemplate<'a> {
     pub posts: Vec<&'a BlogPost>,
     pub categories: &'a [String],
     pub tags: &'a [(String, usize)],
+    pub pages: &'a [PageItem],
     pub page: usize,
     pub total_pages: usize,
 }
@@ -76,12 +80,14 @@ pub struct TagTemplate<'a> {
 pub struct TagsTemplate<'a> {
     pub tags: &'a [(String, usize)],
     pub categories: &'a [String],
+    pub pages: &'a [PageItem],
 }
 
 pub fn render_index<'a>(
     posts: Vec<&'a BlogPost>,
     categories: &'a [String],
     tags: &'a [(String, usize)],
+    pages: &'a [PageItem],
     page: usize,
     total_pages: usize,
 ) -> askama::Result<String> {
@@ -89,6 +95,7 @@ pub fn render_index<'a>(
         posts,
         categories,
         tags,
+        pages,
         page,
         total_pages,
         current_url: "/".to_string(),
@@ -100,6 +107,7 @@ pub fn render_post<'a>(
     post: &'a BlogPost,
     categories: &'a [String],
     tags: &'a [(String, usize)],
+    pages: &'a [PageItem],
     prev_post: Option<PostNav>,
     next_post: Option<PostNav>,
     comments_enabled: bool,
@@ -109,6 +117,7 @@ pub fn render_post<'a>(
         post,
         categories,
         tags,
+        pages,
         prev_post,
         next_post,
         comments_enabled,
@@ -122,6 +131,7 @@ pub fn render_category<'a>(
     posts: Vec<&'a BlogPost>,
     categories: &'a [String],
     tags: &'a [(String, usize)],
+    pages: &'a [PageItem],
     page: usize,
     total_pages: usize,
 ) -> askama::Result<String> {
@@ -130,6 +140,7 @@ pub fn render_category<'a>(
         posts,
         categories,
         tags,
+        pages,
         page,
         total_pages,
     };
@@ -141,6 +152,7 @@ pub fn render_tag<'a>(
     posts: Vec<&'a BlogPost>,
     categories: &'a [String],
     tags: &'a [(String, usize)],
+    pages: &'a [PageItem],
     page: usize,
     total_pages: usize,
 ) -> askama::Result<String> {
@@ -149,13 +161,38 @@ pub fn render_tag<'a>(
         posts,
         categories,
         tags,
+        pages,
         page,
         total_pages,
     };
     template.render()
 }
 
-pub fn render_tags(tags: &[(String, usize)], categories: &[String]) -> askama::Result<String> {
-    let template = TagsTemplate { tags, categories };
+pub fn render_tags(tags: &[(String, usize)], categories: &[String], pages: &[PageItem]) -> askama::Result<String> {
+    let template = TagsTemplate { tags, categories, pages };
+    template.render()
+}
+
+#[derive(Template)]
+#[template(path = "page.html")]
+pub struct PageTemplate<'a> {
+    pub page: &'a BlogPost,
+    pub categories: &'a [String],
+    pub tags: &'a [(String, usize)],
+    pub pages: &'a [PageItem],
+}
+
+pub fn render_page<'a>(
+    page: &'a BlogPost,
+    categories: &'a [String],
+    tags: &'a [(String, usize)],
+    pages: &'a [PageItem],
+) -> askama::Result<String> {
+    let template = PageTemplate {
+        page,
+        categories,
+        tags,
+        pages,
+    };
     template.render()
 }

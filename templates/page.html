@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>My Blog</title>
-    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml">
+    <title>{{ page.metadata.title }}</title>
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
 </head>
-<body>
+<body class="page-page">
     <header>
         <div class="site-title"><a href="/">My Blog</a></div>
         <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
@@ -19,87 +21,11 @@
 
     <div class="container">
         <main class="main-content">
-            {% if !posts.is_empty() %}
-            <ul class="post-list">
-                {% for post in posts %}
-                <li class="post-list-item">
-                    <h3 class="post-title">
-                        <a href="/{{ post.metadata.year }}/{{ post.metadata.month }}/{{ post.metadata.day }}/{{ post.metadata.slug }}.html">
-                            {{ post.metadata.title }}
-                        </a>
-                    </h3>
-                    <div class="post-meta">
-                        {% if !post.metadata.category.is_empty() %}
-                        <span class="post-category"><a href="/category/{{ post.metadata.category }}.html">{{ post.metadata.category }}</a></span>
-                        {% endif %}
-                        {{ post.metadata.formatted_date }}
-                    </div>
-                    {% match post.metadata.summary %}
-                    {% when Some with (summary) %}
-                    <p class="post-summary">{{ summary }}</p>
-                    {% when None %}
-                    {% endmatch %}
-                    {% if !post.metadata.tags.is_empty() %}
-                    <div class="tags">
-                        {% for tag in post.metadata.tags %}
-                        <span class="tag"><a href="/tag/{{ tag }}.html">{{ tag }}</a></span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
+            <h1 class="article-title">{{ page.metadata.title }}</h1>
 
-            <div class="pagination">
-                {% if page > 1 %}
-                <a href="{% if page == 2 %}/{% else %}/page/{{ page - 1 }}.html{% endif %}">&laquo; Previous</a>
-                {% else %}
-                <span class="disabled">&laquo; Previous</span>
-                {% endif %}
-
-                {% if total_pages <= 7 %}
-                {% for p in 1..=total_pages %}
-                {% if p == page %}
-                <span class="current">{{ p }}</span>
-                {% else %}
-                <a href="{% if p == 1 %}/{% else %}/page/{{ p }}.html{% endif %}">{{ p }}</a>
-                {% endif %}
-                {% endfor %}
-                {% else %}
-                {% if page > 3 %}
-                <a href="/">1</a>
-                <span class="disabled">...</span>
-                {% endif %}
-                {% if page > 2 %}
-                <a href="/page/{{ page - 2 }}.html">{{ page - 2 }}</a>
-                {% endif %}
-                {% if page > 1 %}
-                <a href="/page/{{ page - 1 }}.html">{{ page - 1 }}</a>
-                {% endif %}
-                <span class="current">{{ page }}</span>
-                {% if page < total_pages %}
-                <a href="/page/{{ page + 1 }}.html">{{ page + 1 }}</a>
-                {% endif %}
-                {% if page < total_pages - 1 %}
-                <a href="/page/{{ page + 2 }}.html">{{ page + 2 }}</a>
-                {% endif %}
-                {% if page < total_pages - 3 %}
-                <span class="disabled">...</span>
-                <a href="/page/{{ total_pages }}.html">{{ total_pages }}</a>
-                {% else if page < total_pages - 2 %}
-                <a href="/page/{{ total_pages }}.html">{{ total_pages }}</a>
-                {% endif %}
-                {% endif %}
-
-                {% if page < total_pages %}
-                <a href="/page/{{ page + 1 }}.html">Next &raquo;</a>
-                {% else %}
-                <span class="disabled">Next &raquo;</span>
-                {% endif %}
-            </div>
-            {% else %}
-            <p>No posts found.</p>
-            {% endif %}
+            <article>
+                {{ page.metadata.html_content|safe }}
+            </article>
         </main>
 
         <aside class="sidebar">

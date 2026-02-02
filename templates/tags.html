@@ -38,6 +38,17 @@
         </main>
 
         <aside class="sidebar">
+            {% if !pages.is_empty() %}
+            <div class="sidebar-section">
+                <h3>Pages</h3>
+                <ul class="page-list">
+                    {% for page in pages %}
+                    <li><a href="/{{ page.path }}.html">{{ page.label }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
             <div class="sidebar-section">
                 <h3>Categories</h3>
                 <ul class="category-list">
@@ -61,6 +72,17 @@
     <!-- Mobile Sidebar -->
     <div class="mobile-sidebar" id="mobileSidebar">
         <div class="mobile-sidebar-content">
+            {% if !pages.is_empty() %}
+            <div class="sidebar-section">
+                <h3>Pages</h3>
+                <ul class="page-list">
+                    {% for page in pages %}
+                    <li><a href="/{{ page.path }}.html">{{ page.label }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
             <div class="sidebar-section">
                 <h3>Categories</h3>
                 <ul class="category-list">

@@ -14,6 +14,12 @@ pub struct FrontMatter {
     pub tags: Vec<String>,
     #[serde(default)]
     pub summary: Option<String>,
+    #[serde(default)]
+    pub order: Option<usize>,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub path: Option<String>,
 }
 
 pub fn parse_frontmatter(content: &str) -> Result<Option<FrontMatter>> {
@@ -99,5 +105,137 @@ This is the content."#;
     fn test_extract_filename_date() {
         let date = extract_filename_date("2024-01-15-my-post.md").unwrap();
         assert_eq!(date.to_string(), "2024-01-15");
+    }
+}
+
+/// Page item for sidebar navigation
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+pub struct PageItem {
+    pub order: Option<usize>,
+    pub label: String,
+    pub path: String,
+    pub filename: String,
+}
+
+/// Parse a markdown file from the pages directory
+pub fn parse_page_frontmatter(content: &str, filename: &str) -> Result<PageItem> {
+    let trimmed = content.trim_start();
+
+    // Parse frontmatter if exists
+    let (order, label, path) = if trimmed.starts_with("---") {
+        if let Some(end_delimiter) = trimmed[3..].find("---") {
+            let yaml_content = &trimmed[3..3 + end_delimiter];
+
+            // Parse only the fields we need for pages
+            #[derive(Deserialize)]
+            struct PageFrontMatter {
+                #[serde(default)]
+                order: Option<usize>,
+                #[serde(default)]
+                label: Option<String>,
+                #[serde(default)]
+                title: Option<String>,
+                #[serde(default)]
+                path: Option<String>,
+            }
+
+            if let Ok(page_fm) = serde_yaml::from_str::<PageFrontMatter>(yaml_content) {
+                let label = page_fm.label.or(page_fm.title).unwrap_or_else(|| {
+                    // Use filename without .md extension as fallback
+                    filename.strip_suffix(".md").unwrap_or(filename).to_string()
+                });
+
+                let path = page_fm.path.unwrap_or_else(|| {
+                    // Use filename without .md extension as path
+                    filename.strip_suffix(".md").unwrap_or(filename).to_string()
+                });
+
+                (page_fm.order, label, path)
+            } else {
+                // Failed to parse, use defaults
+                let label = filename.strip_suffix(".md").unwrap_or(filename).to_string();
+                let path = filename.strip_suffix(".md").unwrap_or(filename).to_string();
+                (None, label, path)
+            }
+        } else {
+            // Invalid frontmatter, use defaults
+            let label = filename.strip_suffix(".md").unwrap_or(filename).to_string();
+            let path = filename.strip_suffix(".md").unwrap_or(filename).to_string();
+            (None, label, path)
+        }
+    } else {
+        // No frontmatter, use defaults
+        let label = filename.strip_suffix(".md").unwrap_or(filename).to_string();
+        let path = filename.strip_suffix(".md").unwrap_or(filename).to_string();
+        (None, label, path)
+    };
+
+    Ok(PageItem {
+        order,
+        label,
+        path,
+        filename: filename.to_string(),
+    })
+}
+
+#[cfg(test)]
+mod tests_pages {
+    use super::*;
+
+    #[test]
+    fn test_parse_page_frontmatter_with_all_fields() {
+        let content = r#"---
+order: 1
+label: About Me
+path: about
+title: About Page
+---
+
+Content here."#;
+
+        let page = parse_page_frontmatter(content, "test.md").unwrap();
+        assert_eq!(page.order, Some(1));
+        assert_eq!(page.label, "About Me");
+        assert_eq!(page.path, "about");
+    }
+
+    #[test]
+    fn test_parse_page_frontmatter_without_label() {
+        let content = r#"---
+order: 2
+path: contact
+title: Contact Us
+---
+
+Content here."#;
+
+        let page = parse_page_frontmatter(content, "test.md").unwrap();
+        assert_eq!(page.order, Some(2));
+        assert_eq!(page.label, "Contact Us"); // Falls back to title
+        assert_eq!(page.path, "contact");
+    }
+
+    #[test]
+    fn test_parse_page_frontmatter_without_order() {
+        let content = r#"---
+label: FAQ
+path: faq
+---
+
+Content here."#;
+
+        let page = parse_page_frontmatter(content, "test.md").unwrap();
+        assert_eq!(page.order, None);
+        assert_eq!(page.label, "FAQ");
+        assert_eq!(page.path, "faq");
+    }
+
+    #[test]
+    fn test_parse_page_frontmatter_without_frontmatter() {
+        let content = "Just content without frontmatter";
+        let page = parse_page_frontmatter(content, "test.md").unwrap();
+        assert_eq!(page.order, None);
+        assert_eq!(page.label, "test");
+        assert_eq!(page.path, "test");
     }
 }

@@ -1,7 +1,7 @@
 // HTML generation module
 use super::template::{render_index, render_post, render_category, render_tag, render_tags};
 use crate::config::Config;
-use crate::parser::BlogPost;
+use crate::parser::{BlogPost, frontmatter::{PageItem, parse_page_frontmatter}};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
@@ -24,6 +24,10 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
     // Get top 30 tags for sidebar
     let top_tags: Vec<(String, usize)> = tags.iter().take(TOP_TAGS_COUNT).cloned().collect();
 
+    // Collect and sort pages
+    let mut pages = collect_pages(&config.input_dir)?;
+    sort_pages(&mut pages);
+
     // Sort posts by date (ascending order for chronological navigation)
     let mut sorted_posts: Vec<&BlogPost> = posts.iter().collect();
     sorted_posts.sort_by(|a, b| {
@@ -37,10 +41,10 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
     });
 
     // Generate index.html with pagination
-    generate_paginated_index(posts, &categories, &top_tags, config, posts_per_page)?;
+    generate_paginated_index(posts, &categories, &top_tags, &pages, config, posts_per_page)?;
 
     // Generate tags.html (all tags listing)
-    let tags_html = render_tags(&tags, &categories)?;
+    let tags_html = render_tags(&tags, &categories, &pages)?;
     let tags_path = config.output_dir.join("tags.html");
     fs::write(&tags_path, tags_html)
         .context("Failed to write tags.html")?;
@@ -52,6 +56,7 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
             &category_posts,
             &categories,
             &top_tags,
+            &pages,
             config,
             posts_per_page,
             &format!("/category/{}", sanitize_filename(category)),
@@ -67,6 +72,7 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
             &tag_posts,
             &categories,
             &top_tags,
+            &pages,
             config,
             posts_per_page,
             &format!("/tag/{}", sanitize_filename(tag)),
@@ -143,6 +149,7 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
             post,
             &categories,
             &top_tags,
+            &pages,
             prev_nav,
             next_nav,
             config.comments.enabled,
@@ -168,6 +175,38 @@ pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
     let base_url = "http://localhost:7878";
     super::rss::save_rss_feed(posts, config, base_url)?;
 
+    // Generate individual pages
+    generate_pages(&pages, &categories, &top_tags, config)?;
+
+    Ok(())
+}
+
+fn generate_pages(
+    pages: &[PageItem],
+    categories: &[String],
+    tags: &[(String, usize)],
+    config: &Config,
+) -> Result<()> {
+    let pages_dir = config.input_dir.join("pages");
+
+    // Check if pages directory exists
+    if !pages_dir.exists() {
+        return Ok(());
+    }
+
+    for page_item in pages {
+        let page_path = pages_dir.join(&page_item.filename);
+
+        // Parse the page as a BlogPost (using the same logic as regular posts)
+        if let Ok(blog_post) = BlogPost::from_file(&page_path) {
+            let page_html = super::template::render_page(&blog_post, categories, tags, pages)?;
+
+            let output_path = config.output_dir.join(format!("{}.html", page_item.path));
+            fs::write(&output_path, page_html)
+                .with_context(|| format!("Failed to write page HTML: {}", output_path.display()))?;
+        }
+    }
+
     Ok(())
 }
 
@@ -175,6 +214,7 @@ fn generate_paginated_index(
     all_posts: &[BlogPost],
     categories: &[String],
     tags: &[(String, usize)],
+    pages: &[PageItem],
     config: &Config,
     posts_per_page: usize,
 ) -> Result<()> {
@@ -186,7 +226,7 @@ fn generate_paginated_index(
         let end = std::cmp::min(start + posts_per_page, total_posts);
         let page_posts: Vec<&BlogPost> = all_posts[start..end].iter().collect();
 
-        let html = render_index(page_posts, categories, tags, page, total_pages)?;
+        let html = render_index(page_posts, categories, tags, pages, page, total_pages)?;
 
         let output_path = if page == 1 {
             config.output_dir.join("index.html")
@@ -207,6 +247,7 @@ fn generate_paginated_pages(
     all_posts: &[&BlogPost],
     categories: &[String],
     tags: &[(String, usize)],
+    pages: &[PageItem],
     config: &Config,
     posts_per_page: usize,
     base_path: &str,
@@ -222,9 +263,9 @@ fn generate_paginated_pages(
         let page_posts: Vec<&BlogPost> = all_posts[start..end].to_vec();
 
         let html = if page_type == "category" {
-            render_category(identifier, page_posts, categories, tags, page, total_pages)?
+            render_category(identifier, page_posts, categories, tags, pages, page, total_pages)?
         } else {
-            render_tag(identifier, page_posts, categories, tags, page, total_pages)?
+            render_tag(identifier, page_posts, categories, tags, pages, page, total_pages)?
         };
 
         let output_path = if page == 1 {
@@ -361,4 +402,54 @@ fn find_css_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
     }
 
     Ok(css_files)
+}
+
+/// Collect all markdown files from the pages directory and parse them
+pub fn collect_pages(input_dir: &PathBuf) -> Result<Vec<PageItem>> {
+    let pages_dir = input_dir.join("pages");
+    let mut pages = Vec::new();
+
+    // Check if pages directory exists
+    if !pages_dir.exists() {
+        return Ok(pages);
+    }
+
+    // Read all .md files in the pages directory
+    for entry in fs::read_dir(&pages_dir)
+        .with_context(|| format!("Failed to read pages directory: {}", pages_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(ext) = path.extension() {
+                if ext == "md" {
+                    let filename = path
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .context("Invalid filename")?;
+
+                    let content = fs::read_to_string(&path)
+                        .with_context(|| format!("Failed to read page file: {}", path.display()))?;
+
+                    let page = parse_page_frontmatter(&content, filename)?;
+                    pages.push(page);
+                }
+            }
+        }
+    }
+
+    Ok(pages)
+}
+
+/// Sort pages by order field, then by filename as fallback
+pub fn sort_pages(pages: &mut Vec<PageItem>) {
+    pages.sort_by(|a, b| {
+        match (a.order, b.order) {
+            (Some(order_a), Some(order_b)) => order_a.cmp(&order_b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.filename.cmp(&b.filename),
+        }
+    });
 }
