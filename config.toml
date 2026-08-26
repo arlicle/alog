@@ -10,6 +10,9 @@ output_dir = "../arlicle.github.io"
 # 站点标题
 site_title = "叫兽"
 
+# 站点公开地址，用于生成 RSS 中的绝对文章链接
+site_url = "https://debugmyself.com"
+
 # 服务器配置
 [server]
     # 端口号：开发服务器监听的端口

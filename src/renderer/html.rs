@@ -134,7 +134,6 @@ pub fn generate_site(posts: &[BlogPost], pages: &[BlogPost], config: &Config) ->
     super::rss::save_rss_feed(
         &sorted_posts.iter().copied().cloned().collect::<Vec<_>>(),
         config,
-        "http://localhost:7878",
     )?;
 
     Ok(())
@@ -382,4 +381,79 @@ fn collect_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::BlogPost;
+    use rss::Channel;
+    use std::fs;
+    use std::io::BufReader;
+
+    fn write_test_post(root: &Path, filename: &str, frontmatter: &str) -> BlogPost {
+        let path = root.join(filename);
+        fs::write(
+            &path,
+            format!("---\n{frontmatter}\n---\n\nArticle content."),
+        )
+        .unwrap();
+        BlogPost::from_file(&path).unwrap()
+    }
+
+    #[test]
+    fn site_build_writes_and_refreshes_rss_with_public_posts_only() {
+        let root = std::env::temp_dir().join(format!(
+            "alog-rss-build-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+
+        let mut config = Config::default();
+        config.output_dir = root.join("www");
+        config.site_url = "https://example.com/".to_string();
+
+        let first_post = write_test_post(
+            &root,
+            "2024-01-01-first.md",
+            "title: First\ndate: 2024-01-01\nsummary: First summary",
+        );
+        generate_site(&[first_post], &[], &config).unwrap();
+
+        let rss_path = config.output_dir.join("rss.xml");
+        assert!(rss_path.is_file());
+        let first_feed =
+            Channel::read_from(BufReader::new(fs::File::open(&rss_path).unwrap())).unwrap();
+        assert_eq!(first_feed.items().len(), 1);
+        assert_eq!(first_feed.items()[0].title(), Some("First"));
+
+        let second_post = write_test_post(
+            &root,
+            "2024-01-02-second.md",
+            "title: Second\ndate: 2024-01-02\nsummary: Second summary",
+        );
+        let draft_post = write_test_post(
+            &root,
+            "2024-01-03-draft.md",
+            "title: Draft\ndate: 2024-01-03\ndraft: true",
+        );
+        let private_post = write_test_post(
+            &root,
+            "2024-01-04-private.md",
+            "title: Private\ndate: 2024-01-04\nprivate: true",
+        );
+        generate_site(&[second_post, draft_post, private_post], &[], &config).unwrap();
+
+        let refreshed_feed =
+            Channel::read_from(BufReader::new(fs::File::open(&rss_path).unwrap())).unwrap();
+        assert_eq!(refreshed_feed.items().len(), 1);
+        assert_eq!(refreshed_feed.items()[0].title(), Some("Second"));
+        assert_eq!(refreshed_feed.link(), "https://example.com");
+
+        fs::remove_dir_all(root).unwrap();
+    }
 }

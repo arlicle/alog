@@ -123,6 +123,9 @@ input_dir = "./md"
 # 输出目录：生成的静态网站文件存放目录
 output_dir = "./www"
 
+# 站点公开地址，用于生成 RSS 中的绝对文章链接
+site_url = "https://example.com"
+
 # 服务器配置
 [server]
     # 端口号：开发服务器监听的端口
@@ -236,6 +239,8 @@ www/
 ├── tags.html
 └── rss.xml
 ```
+
+生成完成后，RSS 订阅地址固定为 `/rss.xml`。每次执行 `build` 或在 `serve` 模式下检测到文章变化时，都会根据当前公开文章重新生成订阅列表。生产环境请将 `site_url` 设置为实际部署域名。
 
 ## 常见任务
 

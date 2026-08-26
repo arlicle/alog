@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     #[serde(default = "default_site_title")]
     pub site_title: String,
+    #[serde(default = "default_site_url")]
+    pub site_url: String,
     pub input_dir: PathBuf,
     pub output_dir: PathBuf,
     pub server: ServerConfig,
@@ -17,6 +19,10 @@ pub struct Config {
 
 fn default_site_title() -> String {
     "叫兽".to_string()
+}
+
+fn default_site_url() -> String {
+    "http://localhost:7878".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +68,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             site_title: default_site_title(),
+            site_url: default_site_url(),
             input_dir: PathBuf::from("./md"),
             output_dir: PathBuf::from("./www"),
             server: ServerConfig {
