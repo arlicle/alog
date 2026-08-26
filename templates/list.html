@@ -1,0 +1,40 @@
+{% extends "ablog_base.html" %}
+
+{% block page_title %}{{ heading }} - {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="container bg-white pb-5 px-5x spx-0">
+  <h1 class="text-center post-title">{{ heading }}</h1>
+
+  {% for post in posts %}
+  <p>
+    <a href="{{ post.metadata.url }}">{{ post.metadata.title }}</a>
+    <span class="text-muted">{{ post.metadata.formatted_date }}</span>
+  </p>
+  {% endfor %}
+
+  {% if total_pages > 1 %}
+  <ul class="pagination mt-5 justify-content-center">
+    <li class="page-item{% if page == 1 %} disabled{% endif %}">
+      {% if page > 1 %}
+      <a class="page-link" href="{% if page == 2 %}{{ base_url }}/{% else %}{{ base_url }}/page/{{ page - 1 }}/{% endif %}">Previous</a>
+      {% else %}
+      <span class="page-link">Previous</span>
+      {% endif %}
+    </li>
+    {% for number in 1..=total_pages %}
+    <li class="page-item{% if number == page %} active{% endif %}">
+      <a class="page-link" href="{% if number == 1 %}{{ base_url }}/{% else %}{{ base_url }}/page/{{ number }}/{% endif %}">{{ number }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item{% if page == total_pages %} disabled{% endif %}">
+      {% if page < total_pages %}
+      <a class="page-link" href="{{ base_url }}/page/{{ page + 1 }}/">Next</a>
+      {% else %}
+      <span class="page-link">Next</span>
+      {% endif %}
+    </li>
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

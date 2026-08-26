@@ -1,212 +1,36 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>{{ page.metadata.title }}</title>
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script>hljs.highlightAll();</script>
-</head>
-<body class="page-page">
-    <header>
-        <div class="site-title"><a href="/">My Blog</a></div>
-        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-    </header>
+{% extends "ablog_base.html" %}
 
-    <div class="container">
-        <main class="main-content">
-            <h1 class="article-title">{{ page.metadata.title }}</h1>
+{% block page_title %}{{ page.metadata.title }} - {{ site_title }}{% endblock %}
 
-            <article>
-                {{ page.metadata.html_content|safe }}
-            </article>
+{% block content %}
+<div class="container bg-white pb-5 px-5 spx-0">
+  <h1 class="post-title">{{ page.metadata.title }}</h1>
+  {{ page.metadata.html_content|safe }}
+  <p class="text-left text-muted">{{ page.metadata.formatted_date }}</p>
+</div>
+{% endblock %}
 
-            {% if comments_enabled %}
-            {% if comments_config.is_some() %}
-            {% let config = comments_config.as_ref().unwrap() %}
-            <div class="comments-section" id="comments">
-                <h3>Comments</h3>
-            </div>
-
-            <script src="https://giscus.app/client.js"
-                    data-repo="{{ config.repo }}"
-                    data-repo-id="{{ config.repo_id }}"
-                    data-category="{{ config.category }}"
-                    data-category-id="{{ config.category_id }}"
-                    data-mapping="{{ config.mapping }}"
-                    data-strict="{{ config.strict }}"
-                    data-reactions-enabled="{{ config.reactions_enabled }}"
-                    data-emit-metadata="{{ config.emit_metadata }}"
-                    data-input-position="{{ config.input_position }}"
-                    data-theme="{{ config.theme }}"
-                    data-lang="{{ config.lang }}"
-                    crossorigin="anonymous"
-                    async
-                    onload="handleGiscusLoad(event)">
-            </script>
-
-            <script>
-            function handleGiscusLoad(event) {
-                console.log('Giscus loaded successfully');
-            }
-
-            // 监听 Giscus 错误事件
-            window.addEventListener('error', function(e) {
-                if (e.message && e.message.includes('giscus')) {
-                    console.error('Giscus error:', e);
-                }
-            });
-
-            // 监听未捕获的 Promise 拒绝
-            window.addEventListener('unhandledrejection', function(e) {
-                if (e.reason && e.reason.toString().includes('giscus')) {
-                    console.error('Giscus promise rejection:', e.reason);
-                }
-            });
-            </script>
-
-            <style>
-            .comments-section {
-                margin-top: 3rem;
-                padding-top: 2rem;
-                border-top: 1px solid #e0e0e0;
-            }
-
-            .comments-section h3 {
-                margin-bottom: 1.5rem;
-                font-size: 1.5rem;
-                color: #333;
-            }
-
-            #giscus-container {
-                min-height: 200px;
-            }
-
-            /* 响应式调整 */
-            @media (max-width: 768px) {
-                .comments-section {
-                    margin-top: 2rem;
-                    padding-top: 1.5rem;
-                }
-
-                .comments-section h3 {
-                    font-size: 1.25rem;
-                }
-            }
-            </style>
-            {% endif %}
-            {% endif %}
-        </main>
-
-        <aside class="sidebar">
-            {% if !pages.is_empty() %}
-            <div class="sidebar-section">
-                <h3>Pages</h3>
-                <ul class="page-list">
-                    {% for page in pages %}
-                    <li><a href="/{{ page.path }}.html">{{ page.label }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            <div class="sidebar-section">
-                <h3>Categories</h3>
-                <ul class="category-list">
-                    {% for cat in categories %}
-                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>Popular Tags</h3>
-                <ul class="tag-cloud">
-                    {% for (tag, count) in tags %}
-                    <li><a href="/tag/{{ tag }}.html">{{ tag }} <span class="tag-count">({{ count }})</span></a></li>
-                    {% endfor %}
-                </ul>
-                <p style="margin-top: 1rem;"><a href="/tags.html">&rarr; View all tags</a></p>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>Subscribe</h3>
-                <p><a href="/rss.xml">RSS Feed</a></p>
-            </div>
-        </aside>
-    </div>
-
-    <footer>
-        <p>&copy; 2024 My Blog. Built with alog.</p>
-    </footer>
-
-    <!-- Mobile Sidebar -->
-    <div class="mobile-sidebar" id="mobileSidebar">
-        <div class="mobile-sidebar-content">
-            {% if !pages.is_empty() %}
-            <div class="sidebar-section">
-                <h3>Pages</h3>
-                <ul class="page-list">
-                    {% for page in pages %}
-                    <li><a href="/{{ page.path }}.html">{{ page.label }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            <div class="sidebar-section">
-                <h3>Categories</h3>
-                <ul class="category-list">
-                    {% for cat in categories %}
-                    <li><a href="/category/{{ cat }}.html">{{ cat }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>Popular Tags</h3>
-                <ul class="tag-cloud">
-                    {% for (tag, count) in tags %}
-                    <li><a href="/tag/{{ tag }}.html">{{ tag }} <span class="tag-count">({{ count }})</span></a></li>
-                    {% endfor %}
-                </ul>
-                <p style="margin-top: 1rem;"><a href="/tags.html">&rarr; View all tags</a></p>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>Subscribe</h3>
-                <p><a href="/rss.xml">RSS Feed</a></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Overlay for mobile sidebar -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <script>
-        const menuToggle = document.getElementById('menuToggle');
-        const mobileSidebar = document.getElementById('mobileSidebar');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-        menuToggle.addEventListener('click', () => {
-            mobileSidebar.classList.toggle('active');
-            sidebarOverlay.classList.toggle('active');
-            menuToggle.classList.toggle('active');
-            document.body.style.overflow = mobileSidebar.classList.contains('active') ? 'hidden' : '';
-        });
-
-        sidebarOverlay.addEventListener('click', () => {
-            mobileSidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-            menuToggle.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-    </script>
-</body>
-</html>
+{% block extra_footer %}
+{% if comments_enabled %}
+  {% if let Some(config) = comments_config %}
+  <div class="container mt-5">
+    <h3>留言</h3>
+    <div class="giscus"></div>
+  </div>
+  <script src="https://giscus.app/client.js"
+          data-repo="{{ config.repo }}"
+          data-repo-id="{{ config.repo_id }}"
+          data-category="{{ config.category }}"
+          data-category-id="{{ config.category_id }}"
+          data-mapping="{{ config.mapping }}"
+          data-strict="{{ config.strict }}"
+          data-reactions-enabled="{{ config.reactions_enabled }}"
+          data-emit-metadata="{{ config.emit_metadata }}"
+          data-input-position="{{ config.input_position }}"
+          data-theme="{{ config.theme }}"
+          data-lang="{{ config.lang }}"
+          crossorigin="anonymous"
+          async></script>
+  {% endif %}
+{% endif %}
+{% endblock %}

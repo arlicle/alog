@@ -5,12 +5,18 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_site_title")]
+    pub site_title: String,
     pub input_dir: PathBuf,
     pub output_dir: PathBuf,
     pub server: ServerConfig,
     pub theme: ThemeConfig,
     pub pagination: PaginationConfig,
     pub comments: CommentsConfig,
+}
+
+fn default_site_title() -> String {
+    "叫兽".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +61,7 @@ pub struct GiscusCommentsConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            site_title: default_site_title(),
             input_dir: PathBuf::from("./md"),
             output_dir: PathBuf::from("./www"),
             server: ServerConfig {
@@ -65,9 +72,7 @@ impl Default for Config {
                 name: "default".to_string(),
                 custom_css: None,
             },
-            pagination: PaginationConfig {
-                posts_per_page: 15,
-            },
+            pagination: PaginationConfig { posts_per_page: 15 },
             comments: CommentsConfig {
                 enabled: false,
                 system: "giscus".to_string(),

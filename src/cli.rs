@@ -1,4 +1,5 @@
 // CLI module - command line argument parsing
+#[allow(clippy::module_inception)]
 pub mod cli {
     use clap::{Parser, Subcommand};
     use std::path::PathBuf;
@@ -15,8 +16,8 @@ pub mod cli {
     pub enum Commands {
         /// Build the blog (generate HTML from Markdown)
         Build {
-            /// Directory containing markdown files
-            #[arg(short, long, default_value = "./md")]
+            /// Content root containing posts/ and pages/
+            #[arg(short, long, default_value = ".")]
             input_dir: PathBuf,
             /// Output directory for generated site
             #[arg(short, long, default_value = "./www")]
@@ -27,8 +28,8 @@ pub mod cli {
             /// Port number
             #[arg(short, long, default_value = "7878")]
             port: u16,
-            /// Directory containing markdown files
-            #[arg(short, long, default_value = "./md")]
+            /// Content root containing posts/ and pages/
+            #[arg(short, long, default_value = ".")]
             input_dir: PathBuf,
             /// Output directory for generated site
             #[arg(short, long, default_value = "./www")]

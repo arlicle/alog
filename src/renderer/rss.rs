@@ -7,29 +7,22 @@ use rss::{ChannelBuilder, ItemBuilder};
 
 const RSS_ITEM_LIMIT: usize = 20;
 
-pub fn generate_rss_feed(posts: &[BlogPost], _config: &Config, base_url: &str) -> Result<String> {
+pub fn generate_rss_feed(posts: &[BlogPost], config: &Config, base_url: &str) -> Result<String> {
     // Only include the latest 20 posts
     let latest_posts: Vec<&BlogPost> = posts.iter().take(RSS_ITEM_LIMIT).collect();
 
     let items: Vec<rss::Item> = latest_posts
         .iter()
         .map(|post| {
-            let link = format!(
-                "{}/{}/{}/{}/{}.html",
-                base_url,
-                post.metadata.year,
-                post.metadata.month,
-                post.metadata.day,
-                post.metadata.slug
-            );
-            
+            let link = format!("{}{}", base_url.trim_end_matches('/'), post.metadata.url);
+
             let pub_date = DateTime::<chrono::Utc>::from_naive_utc_and_offset(
                 post.metadata.date.and_hms_opt(0, 0, 0).unwrap(),
                 chrono::Utc,
             );
-            
-            let description = post.metadata.summary.clone().unwrap_or_else(|| String::new());
-            
+
+            let description = post.metadata.summary.clone().unwrap_or_default();
+
             ItemBuilder::default()
                 .title(post.metadata.title.clone())
                 .link(link)
@@ -40,9 +33,9 @@ pub fn generate_rss_feed(posts: &[BlogPost], _config: &Config, base_url: &str) -
         .collect();
 
     let channel = ChannelBuilder::default()
-        .title("My Blog")
+        .title(config.site_title.clone())
         .link(base_url)
-        .description("A blog generated with alog")
+        .description(format!("{} generated with alog", config.site_title))
         .language(Some("en-us".to_string()))
         .items(items)
         .build();

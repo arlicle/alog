@@ -1,39 +1,17 @@
-// Template rendering module
+use crate::parser::BlogPost;
 use askama::Template;
-use crate::parser::{BlogPost, frontmatter::PageItem};
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize)]
+pub struct PageLink {
+    pub label: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct PostNav {
     pub title: String,
     pub url: String,
-    pub date: String,
-    pub created_at: String,
-}
-
-#[derive(Template)]
-#[template(path = "index.html")]
-pub struct IndexTemplate<'a> {
-    pub posts: Vec<&'a BlogPost>,
-    pub categories: &'a [String],
-    pub tags: &'a [(String, usize)],
-    pub pages: &'a [PageItem],
-    pub page: usize,
-    pub total_pages: usize,
-    pub current_url: String,
-}
-
-#[derive(Template)]
-#[template(path = "post.html")]
-pub struct PostTemplate<'a> {
-    pub post: &'a BlogPost,
-    pub categories: &'a [String],
-    pub tags: &'a [(String, usize)],
-    pub pages: &'a [PageItem],
-    pub prev_post: Option<PostNav>,
-    pub next_post: Option<PostNav>,
-    pub comments_enabled: bool,
-    pub comments_config: Option<CommentsConfigTemplate>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -52,153 +30,94 @@ pub struct CommentsConfigTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "category.html")]
-pub struct CategoryTemplate<'a> {
-    pub category: &'a str,
-    pub posts: Vec<&'a BlogPost>,
-    pub categories: &'a [String],
-    pub tags: &'a [(String, usize)],
-    pub pages: &'a [PageItem],
-    pub page: usize,
-    pub total_pages: usize,
-}
-
-#[derive(Template)]
-#[template(path = "tag.html")]
-pub struct TagTemplate<'a> {
-    pub tag: &'a str,
-    pub posts: Vec<&'a BlogPost>,
-    pub categories: &'a [String],
-    pub tags: &'a [(String, usize)],
-    pub pages: &'a [PageItem],
-    pub page: usize,
-    pub total_pages: usize,
-}
-
-#[derive(Template)]
-#[template(path = "tags.html")]
-pub struct TagsTemplate<'a> {
-    pub tags: &'a [(String, usize)],
-    pub categories: &'a [String],
-    pub pages: &'a [PageItem],
-}
-
-pub fn render_index<'a>(
-    posts: Vec<&'a BlogPost>,
-    categories: &'a [String],
-    tags: &'a [(String, usize)],
-    pages: &'a [PageItem],
-    page: usize,
-    total_pages: usize,
-) -> askama::Result<String> {
-    let template = IndexTemplate {
-        posts,
-        categories,
-        tags,
-        pages,
-        page,
-        total_pages,
-        current_url: "/".to_string(),
-    };
-    template.render()
-}
-
-pub fn render_post<'a>(
-    post: &'a BlogPost,
-    categories: &'a [String],
-    tags: &'a [(String, usize)],
-    pages: &'a [PageItem],
-    prev_post: Option<PostNav>,
-    next_post: Option<PostNav>,
-    comments_enabled: bool,
-    comments_config: Option<CommentsConfigTemplate>,
-) -> askama::Result<String> {
-    let template = PostTemplate {
-        post,
-        categories,
-        tags,
-        pages,
-        prev_post,
-        next_post,
-        comments_enabled,
-        comments_config,
-    };
-    template.render()
-}
-
-pub fn render_category<'a>(
-    category: &'a str,
-    posts: Vec<&'a BlogPost>,
-    categories: &'a [String],
-    tags: &'a [(String, usize)],
-    pages: &'a [PageItem],
-    page: usize,
-    total_pages: usize,
-) -> askama::Result<String> {
-    let template = CategoryTemplate {
-        category,
-        posts,
-        categories,
-        tags,
-        pages,
-        page,
-        total_pages,
-    };
-    template.render()
-}
-
-pub fn render_tag<'a>(
-    tag: &'a str,
-    posts: Vec<&'a BlogPost>,
-    categories: &'a [String],
-    tags: &'a [(String, usize)],
-    pages: &'a [PageItem],
-    page: usize,
-    total_pages: usize,
-) -> askama::Result<String> {
-    let template = TagTemplate {
-        tag,
-        posts,
-        categories,
-        tags,
-        pages,
-        page,
-        total_pages,
-    };
-    template.render()
-}
-
-pub fn render_tags(tags: &[(String, usize)], categories: &[String], pages: &[PageItem]) -> askama::Result<String> {
-    let template = TagsTemplate { tags, categories, pages };
-    template.render()
+#[template(path = "post.html")]
+pub struct PostTemplate<'a> {
+    pub post: &'a BlogPost,
+    pub pages: &'a [PageLink],
+    pub site_title: &'a str,
+    pub prev_post: Option<PostNav>,
+    pub next_post: Option<PostNav>,
+    pub comments_enabled: bool,
+    pub comments_config: Option<CommentsConfigTemplate>,
 }
 
 #[derive(Template)]
 #[template(path = "page.html")]
 pub struct PageTemplate<'a> {
     pub page: &'a BlogPost,
-    pub categories: &'a [String],
-    pub tags: &'a [(String, usize)],
-    pub pages: &'a [PageItem],
+    pub pages: &'a [PageLink],
+    pub site_title: &'a str,
     pub comments_enabled: bool,
     pub comments_config: Option<CommentsConfigTemplate>,
 }
 
-pub fn render_page<'a>(
-    page: &'a BlogPost,
-    categories: &'a [String],
-    tags: &'a [(String, usize)],
-    pages: &'a [PageItem],
+#[derive(Template)]
+#[template(path = "list.html")]
+pub struct ListTemplate<'a> {
+    pub posts: Vec<&'a BlogPost>,
+    pub pages: &'a [PageLink],
+    pub site_title: &'a str,
+    pub page: usize,
+    pub total_pages: usize,
+    pub heading: &'a str,
+    pub base_url: &'a str,
+}
+
+pub fn render_post<'a>(
+    post: &'a BlogPost,
+    pages: &'a [PageLink],
+    site_title: &'a str,
+    prev_post: Option<PostNav>,
+    next_post: Option<PostNav>,
     comments_enabled: bool,
     comments_config: Option<CommentsConfigTemplate>,
 ) -> askama::Result<String> {
-    let template = PageTemplate {
-        page,
-        categories,
-        tags,
+    PostTemplate {
+        post,
         pages,
+        site_title,
+        prev_post,
+        next_post,
         comments_enabled,
         comments_config,
-    };
-    template.render()
+    }
+    .render()
+}
+
+pub fn render_page<'a>(
+    page: &'a BlogPost,
+    pages: &'a [PageLink],
+    site_title: &'a str,
+    comments_enabled: bool,
+    comments_config: Option<CommentsConfigTemplate>,
+) -> askama::Result<String> {
+    PageTemplate {
+        page,
+        pages,
+        site_title,
+        comments_enabled,
+        comments_config,
+    }
+    .render()
+}
+
+pub fn render_list<'a>(
+    posts: Vec<&'a BlogPost>,
+    pages: &'a [PageLink],
+    site_title: &'a str,
+    page: usize,
+    total_pages: usize,
+    heading: &'a str,
+    base_url: &'a str,
+) -> askama::Result<String> {
+    ListTemplate {
+        posts,
+        pages,
+        site_title,
+        page,
+        total_pages,
+        heading,
+        base_url,
+    }
+    .render()
 }

@@ -1,11 +1,14 @@
 # alog 配置文件
 # 请根据需要修改以下配置项
 
-# 输入目录：存放 Markdown 文章的目录
-input_dir = "./md"
+# 站点源码根目录，下面包含 posts/ 和 pages/
+input_dir = "../arlicle.github.io"
 
-# 输出目录：生成的静态网站文件存放目录
-output_dir = "./www"
+# 生成的静态网站根目录
+output_dir = "../arlicle.github.io"
+
+# 站点标题
+site_title = "叫兽"
 
 # 服务器配置
 [server]

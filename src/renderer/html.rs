@@ -1,202 +1,177 @@
-// HTML generation module
-use super::template::{render_index, render_post, render_category, render_tag, render_tags};
+use super::template::{
+    render_list, render_page, render_post, CommentsConfigTemplate, PageLink, PostNav,
+};
 use crate::config::Config;
-use crate::parser::{BlogPost, frontmatter::{PageItem, parse_page_frontmatter}};
+use crate::parser::BlogPost;
 use anyhow::{Context, Result};
+use chrono::Datelike;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-const TOP_TAGS_COUNT: usize = 30;
+const POSTS_PREFIX: &str = "/p";
+const LIST_PREFIX: &str = "/p/list";
+const POSTS_PER_PAGE: usize = 15;
 
-pub fn generate_site(posts: &[BlogPost], config: &Config) -> Result<()> {
-    // Create output directory
-    fs::create_dir_all(&config.output_dir)
-        .context("Failed to create output directory")?;
+pub fn generate_site(posts: &[BlogPost], pages: &[BlogPost], config: &Config) -> Result<()> {
+    fs::create_dir_all(&config.output_dir).context("Failed to create output directory")?;
+    clean_generated_output(config)?;
+    copy_theme_assets(config)?;
 
-    // Copy CSS files from templates directory to output directory
-    copy_template_assets(config)?;
-
-    // Get categories and tags
-    let categories = get_all_categories(posts);
-    let tags = get_all_tags(posts);
-    let posts_per_page = config.pagination.posts_per_page;
-    
-    // Get top 30 tags for sidebar
-    let top_tags: Vec<(String, usize)> = tags.iter().take(TOP_TAGS_COUNT).cloned().collect();
-
-    // Collect and sort pages
-    let mut pages = collect_pages(&config.input_dir)?;
-    sort_pages(&mut pages);
-
-    // Sort posts by date (ascending order for chronological navigation)
-    let mut sorted_posts: Vec<&BlogPost> = posts.iter().collect();
-    sorted_posts.sort_by(|a, b| {
-        match a.metadata.date.cmp(&b.metadata.date) {
-            std::cmp::Ordering::Equal => match a.metadata.title.cmp(&b.metadata.title) {
-                std::cmp::Ordering::Equal => a.metadata.created_at.cmp(&b.metadata.created_at),
-                other => other,
-            },
-            other => other,
-        }
+    let mut sorted_posts: Vec<&BlogPost> = posts
+        .iter()
+        .filter(|post| post.metadata.kind == "post" && post.is_public())
+        .collect();
+    sorted_posts.sort_by(|left, right| {
+        right
+            .metadata
+            .date
+            .cmp(&left.metadata.date)
+            .then_with(|| right.metadata.created_at.cmp(&left.metadata.created_at))
+            .then_with(|| left.metadata.title.cmp(&right.metadata.title))
     });
 
-    // Generate index.html with pagination
-    generate_paginated_index(posts, &categories, &top_tags, &pages, config, posts_per_page)?;
+    let public_pages: Vec<&BlogPost> = pages
+        .iter()
+        .filter(|page| page.metadata.kind == "page" && page.is_public())
+        .collect();
+    let page_links = build_page_links(&public_pages);
+    let comments_config = build_comments_config(config);
 
-    // Generate tags.html (all tags listing)
-    let tags_html = render_tags(&tags, &categories, &pages)?;
-    let tags_path = config.output_dir.join("tags.html");
-    fs::write(&tags_path, tags_html)
-        .context("Failed to write tags.html")?;
-
-    // Generate category pages with pagination
-    for category in &categories {
-        let category_posts = get_posts_by_category(posts, category);
-        generate_paginated_pages(
-            &category_posts,
-            &categories,
-            &top_tags,
-            &pages,
-            config,
-            posts_per_page,
-            &format!("/category/{}", sanitize_filename(category)),
-            category,
-            "category",
-        )?;
-    }
-
-    // Generate tag pages with pagination
-    for (tag, _) in &tags {
-        let tag_posts = get_posts_by_tag(posts, tag);
-        generate_paginated_pages(
-            &tag_posts,
-            &categories,
-            &top_tags,
-            &pages,
-            config,
-            posts_per_page,
-            &format!("/tag/{}", sanitize_filename(tag)),
-            tag,
-            "tag",
-        )?;
-    }
-
-    // Generate individual post pages
-    for post in posts {
-        // Find prev and next posts (sorted by date ascending)
-        let prev_post = sorted_posts
-            .iter()
-            .position(|p| std::ptr::eq(*p, post))
-            .and_then(|i| {
-                if i > 0 {
-                    Some(sorted_posts[i - 1])
-                } else {
-                    None
-                }
-            });
-
-        let next_post = sorted_posts
-            .iter()
-            .position(|p| std::ptr::eq(*p, post))
-            .and_then(|i| {
-                if i + 1 < sorted_posts.len() {
-                    Some(sorted_posts[i + 1])
-                } else {
-                    None
-                }
-            });
-
-        let prev_nav = prev_post.map(|p| super::template::PostNav {
-            title: p.metadata.title.clone(),
-            url: format!(
-                "/{}/{}/{}/{}.html",
-                p.metadata.year, p.metadata.month, p.metadata.day, p.metadata.slug
-            ),
-            date: p.metadata.formatted_date.clone(),
-            created_at: p.metadata.created_at.clone(),
-        });
-
-        let next_nav = next_post.map(|p| super::template::PostNav {
-            title: p.metadata.title.clone(),
-            url: format!(
-                "/{}/{}/{}/{}.html",
-                p.metadata.year, p.metadata.month, p.metadata.day, p.metadata.slug
-            ),
-            date: p.metadata.formatted_date.clone(),
-            created_at: p.metadata.created_at.clone(),
-        });
-
-        // Prepare comments config
-        let comments_config = if config.comments.enabled && config.comments.system == "giscus" {
-            config.comments.giscus.as_ref().map(|giscus| super::template::CommentsConfigTemplate {
-                repo: giscus.repo.clone(),
-                repo_id: giscus.repo_id.clone(),
-                category: giscus.category.clone(),
-                category_id: giscus.category_id.clone(),
-                mapping: giscus.mapping.clone(),
-                strict: giscus.strict.clone(),
-                reactions_enabled: giscus.reactions_enabled.clone(),
-                emit_metadata: giscus.emit_metadata.clone(),
-                input_position: giscus.input_position.clone(),
-                theme: giscus.theme.clone(),
-                lang: giscus.lang.clone(),
-            })
-        } else {
-            None
-        };
-
-        let post_html = render_post(
-            post,
-            &categories,
-            &top_tags,
-            &pages,
-            prev_nav,
-            next_nav,
+    if let Some(latest) = sorted_posts.first() {
+        let html = render_post(
+            latest,
+            &page_links,
+            &config.site_title,
+            None,
+            sorted_posts.get(1).map(|post| post_nav(post)),
             config.comments.enabled,
-            comments_config,
+            comments_config.clone(),
         )?;
-        
-        // Organize by year/month/day: YYYY/MM/DD/slug.html
-        let post_dir = config
-            .output_dir
-            .join(&post.metadata.year)
-            .join(&post.metadata.month)
-            .join(&post.metadata.day);
-        
-        fs::create_dir_all(&post_dir)
-            .context("Failed to create post directory")?;
-        
-        let post_path = post_dir.join(format!("{}.html", post.metadata.slug));
-        fs::write(&post_path, post_html)
-            .context("Failed to write post HTML")?;
+        write_output(&config.output_dir.join("index.html"), html)?;
     }
 
-    // Generate RSS feed
-    let base_url = "http://localhost:7878";
-    super::rss::save_rss_feed(posts, config, base_url)?;
+    for (index, post) in sorted_posts.iter().enumerate() {
+        let previous = index
+            .checked_sub(1)
+            .and_then(|position| sorted_posts.get(position));
+        let next = sorted_posts.get(index + 1).copied();
+        let html = render_post(
+            post,
+            &page_links,
+            &config.site_title,
+            previous.map(|post| post_nav(post)),
+            next.map(post_nav),
+            config.comments.enabled,
+            comments_config.clone(),
+        )?;
+        write_output(&post_output_path(&config.output_dir, post), html)?;
+    }
 
-    // Generate individual pages
-    generate_pages(&pages, &categories, &top_tags, config)?;
+    for page in &public_pages {
+        let html = render_page(
+            page,
+            &page_links,
+            &config.site_title,
+            config.comments.enabled,
+            comments_config.clone(),
+        )?;
+        write_output(&page_output_path(&config.output_dir, page), html)?;
+    }
+
+    generate_list_pages(
+        &sorted_posts,
+        &page_links,
+        &config.site_title,
+        &config.output_dir,
+        LIST_PREFIX,
+        "永远保持初学者的心",
+    )?;
+
+    for category in get_all_categories(&sorted_posts) {
+        let category_posts: Vec<&BlogPost> = sorted_posts
+            .iter()
+            .copied()
+            .filter(|post| {
+                post.metadata
+                    .categories
+                    .iter()
+                    .any(|value| value.eq_ignore_ascii_case(&category))
+            })
+            .collect();
+        let base_url = format!("{POSTS_PREFIX}/cat/{}", sanitize_segment(&category));
+        generate_list_pages(
+            &category_posts,
+            &page_links,
+            &config.site_title,
+            &config.output_dir,
+            &base_url,
+            &format!("分类：{category}"),
+        )?;
+    }
+
+    for tag in get_all_tags(&sorted_posts) {
+        let tag_posts: Vec<&BlogPost> = sorted_posts
+            .iter()
+            .copied()
+            .filter(|post| {
+                post.metadata
+                    .tags
+                    .iter()
+                    .any(|value| value.eq_ignore_ascii_case(&tag))
+            })
+            .collect();
+        let base_url = format!("{POSTS_PREFIX}/tag/{}", sanitize_segment(&tag));
+        generate_list_pages(
+            &tag_posts,
+            &page_links,
+            &config.site_title,
+            &config.output_dir,
+            &base_url,
+            &format!("标签：{tag}"),
+        )?;
+    }
+
+    super::rss::save_rss_feed(
+        &sorted_posts.iter().copied().cloned().collect::<Vec<_>>(),
+        config,
+        "http://localhost:7878",
+    )?;
 
     Ok(())
 }
 
-fn generate_pages(
-    pages: &[PageItem],
-    categories: &[String],
-    tags: &[(String, usize)],
-    config: &Config,
-) -> Result<()> {
-    let pages_dir = config.input_dir.join("pages");
+fn build_page_links(pages: &[&BlogPost]) -> Vec<PageLink> {
+    let mut pages: Vec<&BlogPost> = pages.to_vec();
+    pages.sort_by(|left, right| {
+        left.metadata
+            .order
+            .cmp(&right.metadata.order)
+            .then_with(|| left.metadata.title.cmp(&right.metadata.title))
+    });
 
-    // Check if pages directory exists
-    if !pages_dir.exists() {
-        return Ok(());
+    pages
+        .into_iter()
+        .map(|page| PageLink {
+            label: page
+                .metadata
+                .label
+                .clone()
+                .unwrap_or_else(|| page.metadata.title.clone()),
+            url: page.metadata.url.clone(),
+        })
+        .collect()
+}
+
+fn build_comments_config(config: &Config) -> Option<CommentsConfigTemplate> {
+    if !config.comments.enabled || config.comments.system != "giscus" {
+        return None;
     }
 
-    // Prepare comments config
-    let comments_config = if config.comments.enabled && config.comments.system == "giscus" {
-        config.comments.giscus.as_ref().map(|giscus| super::template::CommentsConfigTemplate {
+    config
+        .comments
+        .giscus
+        .as_ref()
+        .map(|giscus| CommentsConfigTemplate {
             repo: giscus.repo.clone(),
             repo_id: giscus.repo_id.clone(),
             category: giscus.category.clone(),
@@ -209,273 +184,202 @@ fn generate_pages(
             theme: giscus.theme.clone(),
             lang: giscus.lang.clone(),
         })
-    } else {
-        None
-    };
-
-    for page_item in pages {
-        let page_path = pages_dir.join(&page_item.filename);
-
-        // Parse the page as a BlogPost (using the same logic as regular posts)
-        if let Ok(blog_post) = BlogPost::from_file(&page_path) {
-            let page_html = super::template::render_page(
-                &blog_post,
-                categories,
-                tags,
-                pages,
-                config.comments.enabled,
-                comments_config.clone(),
-            )?;
-
-            let output_path = config.output_dir.join(format!("{}.html", page_item.path));
-            fs::write(&output_path, page_html)
-                .with_context(|| format!("Failed to write page HTML: {}", output_path.display()))?;
-        }
-    }
-
-    Ok(())
 }
 
-fn generate_paginated_index(
-    all_posts: &[BlogPost],
-    categories: &[String],
-    tags: &[(String, usize)],
-    pages: &[PageItem],
-    config: &Config,
-    posts_per_page: usize,
+fn post_nav(post: &BlogPost) -> PostNav {
+    PostNav {
+        title: post.metadata.title.clone(),
+        url: post.metadata.url.clone(),
+    }
+}
+
+fn post_output_path(output_dir: &Path, post: &BlogPost) -> PathBuf {
+    output_dir
+        .join("p")
+        .join(&post.metadata.year)
+        .join(post.metadata.date.month().to_string())
+        .join(post.metadata.date.day().to_string())
+        .join(&post.metadata.slug)
+        .join("index.html")
+}
+
+fn page_output_path(output_dir: &Path, page: &BlogPost) -> PathBuf {
+    output_dir
+        .join(page.metadata.url.trim_start_matches('/'))
+        .join("index.html")
+}
+
+fn generate_list_pages(
+    posts: &[&BlogPost],
+    pages: &[PageLink],
+    site_title: &str,
+    output_dir: &Path,
+    base_url: &str,
+    heading: &str,
 ) -> Result<()> {
-    let total_posts = all_posts.len();
-    let total_pages = (total_posts + posts_per_page - 1) / posts_per_page;
+    let total_pages = std::cmp::max(1, posts.len().div_ceil(POSTS_PER_PAGE));
 
-    for page in 1..=total_pages {
-        let start = (page - 1) * posts_per_page;
-        let end = std::cmp::min(start + posts_per_page, total_posts);
-        let page_posts: Vec<&BlogPost> = all_posts[start..end].iter().collect();
+    for page_number in 1..=total_pages {
+        let start = (page_number - 1) * POSTS_PER_PAGE;
+        let end = std::cmp::min(start + POSTS_PER_PAGE, posts.len());
+        let page_posts = posts.get(start..end).unwrap_or_default().to_vec();
+        let html = render_list(
+            page_posts,
+            pages,
+            site_title,
+            page_number,
+            total_pages,
+            heading,
+            base_url,
+        )?;
 
-        let html = render_index(page_posts, categories, tags, pages, page, total_pages)?;
-
-        let output_path = if page == 1 {
-            config.output_dir.join("index.html")
+        let relative = if page_number == 1 {
+            PathBuf::from(base_url.trim_start_matches('/'))
         } else {
-            config.output_dir.join(format!("page/{}.html", page))
+            PathBuf::from(base_url.trim_start_matches('/'))
+                .join("page")
+                .join(page_number.to_string())
         };
-
-        fs::create_dir_all(output_path.parent().unwrap())
-            .context("Failed to create page directory")?;
-        fs::write(&output_path, html)
-            .context("Failed to write paginated HTML")?;
+        write_output(&output_dir.join(relative).join("index.html"), html)?;
     }
 
     Ok(())
 }
 
-fn generate_paginated_pages(
-    all_posts: &[&BlogPost],
-    categories: &[String],
-    tags: &[(String, usize)],
-    pages: &[PageItem],
-    config: &Config,
-    posts_per_page: usize,
-    base_path: &str,
-    identifier: &str,
-    page_type: &str,
-) -> Result<()> {
-    let total_posts = all_posts.len();
-    let total_pages = (total_posts + posts_per_page - 1) / posts_per_page;
-
-    for page in 1..=total_pages {
-        let start = (page - 1) * posts_per_page;
-        let end = std::cmp::min(start + posts_per_page, total_posts);
-        let page_posts: Vec<&BlogPost> = all_posts[start..end].to_vec();
-
-        let html = if page_type == "category" {
-            render_category(identifier, page_posts, categories, tags, pages, page, total_pages)?
-        } else {
-            render_tag(identifier, page_posts, categories, tags, pages, page, total_pages)?
-        };
-
-        let output_path = if page == 1 {
-            config.output_dir.join(&format!("{}.html", &base_path[1..]))
-        } else {
-            config.output_dir.join(&format!("{}/page/{}.html", &base_path[1..], page))
-        };
-
-        fs::create_dir_all(output_path.parent().unwrap())
-            .context("Failed to create page directory")?;
-        fs::write(&output_path, html)
-            .context("Failed to write paginated HTML")?;
-    }
-
-    Ok(())
+fn sanitize_segment(value: &str) -> String {
+    value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("-")
+        .replace(['/', '\\'], "-")
 }
 
-fn sanitize_filename(name: &str) -> String {
-    name.chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '_' })
-        .collect()
-}
-
-pub fn collect_markdown_files(input_dir: &PathBuf) -> Result<Vec<PathBuf>> {
-    let mut markdown_files = Vec::new();
-
-    fn collect_recursive(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
-        for entry in fs::read_dir(dir)
-            .with_context(|| format!("Failed to read directory: {}", dir.display()))?
-        {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "md" {
-                        files.push(path);
-                    }
-                }
-            } else if path.is_dir() {
-                collect_recursive(&path, files)?;
-            }
-        }
-        Ok(())
-    }
-
-    collect_recursive(input_dir, &mut markdown_files)?;
-    Ok(markdown_files)
-}
-
-pub fn get_posts_by_category<'a>(posts: &'a [BlogPost], category: &str) -> Vec<&'a BlogPost> {
-    posts
-        .iter()
-        .filter(|p| p.metadata.category.to_lowercase() == category.to_lowercase())
-        .collect()
-}
-
-pub fn get_posts_by_tag<'a>(posts: &'a [BlogPost], tag: &str) -> Vec<&'a BlogPost> {
-    posts
-        .iter()
-        .filter(|p| p.metadata.tags.iter().any(|t| t.to_lowercase() == tag.to_lowercase()))
-        .collect()
-}
-
-pub fn get_all_categories(posts: &[BlogPost]) -> Vec<String> {
+fn get_all_categories(posts: &[&BlogPost]) -> Vec<String> {
     let mut categories: Vec<String> = posts
         .iter()
-        .filter(|p| !p.metadata.category.is_empty())
-        .map(|p| p.metadata.category.clone())
+        .flat_map(|post| post.metadata.categories.iter().cloned())
+        .filter(|category| !category.is_empty())
         .collect();
     categories.sort();
     categories.dedup();
     categories
 }
 
-pub fn get_all_tags(posts: &[BlogPost]) -> Vec<(String, usize)> {
-    let mut tag_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-
-    for post in posts {
-        for tag in &post.metadata.tags {
-            *tag_counts.entry(tag.clone()).or_insert(0) += 1;
-        }
-    }
-
-    let mut tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
-    tags.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by count descending
+fn get_all_tags(posts: &[&BlogPost]) -> Vec<String> {
+    let mut tags: Vec<String> = posts
+        .iter()
+        .flat_map(|post| post.metadata.tags.iter().cloned())
+        .filter(|tag| !tag.is_empty())
+        .collect();
+    tags.sort();
+    tags.dedup();
     tags
 }
 
-fn copy_template_assets(config: &Config) -> Result<()> {
-    let templates_dir = PathBuf::from("templates");
+fn write_output(path: &Path, content: String) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create output directory: {}", parent.display()))?;
+    }
+    fs::write(path, content)
+        .with_context(|| format!("Failed to write generated file: {}", path.display()))?;
+    Ok(())
+}
 
-    // Check if templates directory exists
-    if !templates_dir.exists() {
-        return Ok(());
+fn clean_generated_output(config: &Config) -> Result<()> {
+    let generated_posts = config.output_dir.join("p");
+    if generated_posts.exists() {
+        fs::remove_dir_all(&generated_posts).with_context(|| {
+            format!(
+                "Failed to clean generated directory: {}",
+                generated_posts.display()
+            )
+        })?;
     }
 
-    // Find all CSS files in templates directory
-    let css_files = find_css_files(&templates_dir)?;
-
-    for css_file in css_files {
-        let file_name = css_file
-            .file_name()
-            .context("Invalid CSS file name")?;
-
-        let dest_path = config.output_dir.join(file_name);
-
-        // Copy the CSS file
-        fs::copy(&css_file, &dest_path)
-            .with_context(|| format!("Failed to copy CSS file from {:?} to {:?}", css_file, dest_path))?;
-
-        println!("Copied {} to output directory", file_name.to_string_lossy());
+    for filename in ["index.html", "rss.xml"] {
+        let path = config.output_dir.join(filename);
+        if path.exists() {
+            fs::remove_file(&path)
+                .with_context(|| format!("Failed to remove generated file: {}", path.display()))?;
+        }
     }
 
     Ok(())
 }
 
-fn find_css_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
-    let mut css_files = Vec::new();
+fn copy_theme_assets(config: &Config) -> Result<()> {
+    let theme_dir = PathBuf::from("theme/default");
+    for (source, destination) in [
+        (theme_dir.join("css"), config.output_dir.join("css")),
+        (theme_dir.join("js"), config.output_dir.join("js")),
+        (theme_dir.join("img"), config.output_dir.join("img")),
+    ] {
+        if source.exists() {
+            copy_directory(&source, &destination)?;
+        }
+    }
+    Ok(())
+}
 
-    for entry in fs::read_dir(dir)
-        .with_context(|| format!("Failed to read directory: {}", dir.display()))?
+fn copy_directory(source: &Path, destination: &Path) -> Result<()> {
+    for entry in fs::read_dir(source)
+        .with_context(|| format!("Failed to read theme directory: {}", source.display()))?
+    {
+        let entry = entry?;
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        if source_path.is_dir() {
+            copy_directory(&source_path, &destination_path)?;
+        } else {
+            fs::create_dir_all(destination).with_context(|| {
+                format!(
+                    "Failed to create theme output directory: {}",
+                    destination.display()
+                )
+            })?;
+            fs::copy(&source_path, &destination_path).with_context(|| {
+                format!(
+                    "Failed to copy theme asset from {} to {}",
+                    source_path.display(),
+                    destination_path.display()
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
+pub fn collect_markdown_files(input_dir: &Path) -> Result<Vec<PathBuf>> {
+    collect_content_files(&input_dir.join("posts"))
+}
+
+pub fn collect_page_files(input_dir: &Path) -> Result<Vec<PathBuf>> {
+    collect_content_files(&input_dir.join("pages"))
+}
+
+fn collect_content_files(content_dir: &Path) -> Result<Vec<PathBuf>> {
+    if !content_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut markdown_files = Vec::new();
+    collect_recursive(content_dir, &mut markdown_files)?;
+    markdown_files.sort();
+    Ok(markdown_files)
+}
+
+fn collect_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in
+        fs::read_dir(dir).with_context(|| format!("Failed to read directory: {}", dir.display()))?
     {
         let entry = entry?;
         let path = entry.path();
-
-        if path.is_file() {
-            if let Some(ext) = path.extension() {
-                if ext == "css" {
-                    css_files.push(path);
-                }
-            }
+        if path.is_dir() {
+            collect_recursive(&path, files)?;
+        } else if path.extension().and_then(|value| value.to_str()) == Some("md") {
+            files.push(path);
         }
     }
-
-    Ok(css_files)
-}
-
-/// Collect all markdown files from the pages directory and parse them
-pub fn collect_pages(input_dir: &PathBuf) -> Result<Vec<PageItem>> {
-    let pages_dir = input_dir.join("pages");
-    let mut pages = Vec::new();
-
-    // Check if pages directory exists
-    if !pages_dir.exists() {
-        return Ok(pages);
-    }
-
-    // Read all .md files in the pages directory
-    for entry in fs::read_dir(&pages_dir)
-        .with_context(|| format!("Failed to read pages directory: {}", pages_dir.display()))?
-    {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_file() {
-            if let Some(ext) = path.extension() {
-                if ext == "md" {
-                    let filename = path
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .context("Invalid filename")?;
-
-                    let content = fs::read_to_string(&path)
-                        .with_context(|| format!("Failed to read page file: {}", path.display()))?;
-
-                    let page = parse_page_frontmatter(&content, filename)?;
-                    pages.push(page);
-                }
-            }
-        }
-    }
-
-    Ok(pages)
-}
-
-/// Sort pages by order field, then by filename as fallback
-pub fn sort_pages(pages: &mut Vec<PageItem>) {
-    pages.sort_by(|a, b| {
-        match (a.order, b.order) {
-            (Some(order_a), Some(order_b)) => order_a.cmp(&order_b),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => a.filename.cmp(&b.filename),
-        }
-    });
+    Ok(())
 }
